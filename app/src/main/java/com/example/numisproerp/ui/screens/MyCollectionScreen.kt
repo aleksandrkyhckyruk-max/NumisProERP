@@ -1,0 +1,993 @@
+package com.numisproerp.ui.screens
+
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SortByAlpha
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.numisproerp.data.dao.CollectionItemWithStock
+import com.numisproerp.data.entities.CollectionItem
+import com.numisproerp.ui.components.SortFilterRow
+import com.numisproerp.ui.i18n.tr
+import com.numisproerp.ui.theme.AccentBlue
+import com.numisproerp.ui.theme.AccentGreen
+import com.numisproerp.ui.theme.IOSDesign
+import com.numisproerp.ui.viewmodel.MyCollectionViewModel
+import com.numisproerp.utils.ImageStorage
+import com.numisproerp.utils.photoModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+@Composable
+fun MyCollectionScreen(
+    navController: NavHostController,
+    viewModel: MyCollectionViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
+    var detailItem by remember { mutableStateOf<CollectionItemWithStock?>(null) }
+    var deleteCandidate by remember { mutableStateOf<CollectionItemWithStock?>(null) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        IconButton(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier
+                .padding(16.dp)
+                .align(Alignment.TopStart)
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = tr("Назад", "Back"),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(modifier = Modifier.width(80.dp))
+                Text(
+                    text = tr("Моя колекція", "My collection"),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+                IconButton(onClick = { viewModel.toggleSortDialog(true) }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort,
+                        contentDescription = tr("Сортувати", "Sort"),
+                        tint = AccentBlue
+                    )
+                }
+                IconButton(onClick = { viewModel.toggleFilterDialog(true) }) {
+                    Icon(
+                        Icons.Default.FilterList,
+                        contentDescription = tr("Фільтр", "Filter"),
+                        tint = AccentBlue
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(tr("Пошук за назвою, серією, категорією...", "Search by name, series, category..."))
+                },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (uiState.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                            Icon(Icons.Outlined.Clear, contentDescription = tr("Очистити", "Clear"))
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
+            )
+
+            val activeFilters = listOfNotNull(
+                if (uiState.filterCategory.isNotEmpty()) tr("Категорія", "Category") + ": " + uiState.filterCategory to { viewModel.setFilterCategory("") }
+                else null,
+                if (uiState.filterMaterial.isNotEmpty()) tr("Матеріал", "Material") + ": " + uiState.filterMaterial to { viewModel.setFilterMaterial("") }
+                else null,
+                if (uiState.filterQuality.isNotEmpty()) tr("Якість", "Quality") + ": " + uiState.filterQuality to { viewModel.setFilterQuality("") }
+                else null,
+                if (uiState.filterSeries.isNotEmpty()) tr("Серія", "Series") + ": " + uiState.filterSeries to { viewModel.setFilterSeries("") }
+                else null,
+                if (uiState.filterNominal.isNotEmpty()) tr("Номінал", "Nominal") + ": " + uiState.filterNominal to { viewModel.setFilterNominal("") }
+                else null
+            )
+            if (activeFilters.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(activeFilters) { (label, onRemove) ->
+                        androidx.compose.material3.AssistChip(
+                            onClick = { onRemove() },
+                            label = { Text(label, fontSize = 12.sp) },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = tr("Прибрати", "Remove"),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        )
+                    }
+                    item {
+                        TextButton(onClick = { viewModel.clearAllFilters() }) {
+                            Text(tr("Очистити все", "Clear all"), fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(tr("Кількість позицій", "Item count"), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        // Показуємо РЕАЛЬНИЙ залишок монет в колекції (початкова
+                        // кількість − продане − списане), а не введену при додаванні
+                        // кількість.
+                        Text(
+                            "${uiState.items.sumOf { it.remainingQuantity }}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = AccentBlue
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(tr("Оціночна вартість", "Estimated value"), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        Text(
+                            "${String.format("%,.2f", uiState.totalEstimatedValue)} ₴",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = AccentGreen
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (uiState.items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            tr("Колекція порожня", "Collection is empty"),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            tr("Натисніть «+» щоб додати свій перший товар", "Tap «+» to add your first item"),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(uiState.items) { wrapper ->
+                        CollectionItemCard(
+                            wrapper = wrapper,
+                            onClick = { detailItem = wrapper },
+                            onEdit = { viewModel.openEditDialog(wrapper.item) },
+                            onDelete = { deleteCandidate = wrapper }
+                        )
+                    }
+                }
+            }
+        }
+
+        FloatingActionButton(
+            onClick = { viewModel.openAddDialog() },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = tr("Додати товар у колекцію", "Add item to collection"))
+        }
+    }
+
+    // Add/Edit dialog
+    if (uiState.showAddDialog) {
+        AddOrEditCollectionDialog(
+            initial = uiState.editingItem,
+            errorMessage = uiState.errorMessage,
+            onDismiss = { viewModel.closeDialog() },
+            onSave = { name, series, category, material, nominal, quality,
+                       description, photoPath, estimatedValue, quantity, sourceUrl ->
+                viewModel.saveItem(
+                    name = name,
+                    series = series,
+                    category = category,
+                    material = material,
+                    nominal = nominal,
+                    quality = quality,
+                    description = description,
+                    photoPath = photoPath,
+                    estimatedValue = estimatedValue,
+                    quantity = quantity,
+                    sourceUrl = sourceUrl
+                )
+            }
+        )
+    }
+
+    // Detail dialog
+    val detailWrapper = detailItem
+    if (detailWrapper != null) {
+        val detail = detailWrapper.item
+        AlertDialog(
+            onDismissRequest = { detailItem = null },
+            title = { Text(detail.name) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (detail.photoPath.isNotEmpty()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(photoModel(detail.photoPath))
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = detail.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                    InfoLine(tr("Серія", "Series"), detail.series)
+                    InfoLine(tr("Категорія", "Category"), detail.category)
+                    InfoLine(tr("Матеріал", "Material"), detail.material)
+                    InfoLine(tr("Номінал", "Nominal"), detail.nominal)
+                    InfoLine(tr("Якість", "Quality"), detail.quality)
+                    // Показуємо реальний залишок з розбивкою, щоб було видно і
+                    // «було додано X», і «продано Y», і «залишилось Z».
+                    InfoLine(
+                        tr("Початкова кількість", "Initial quantity"),
+                        detail.quantity.toString()
+                    )
+                    if (detailWrapper.soldQuantity > 0) {
+                        InfoLine(
+                            tr("Продано", "Sold"),
+                            detailWrapper.soldQuantity.toString()
+                        )
+                    }
+                    if (detailWrapper.writtenOffQuantity > 0) {
+                        InfoLine(
+                            tr("Списано", "Written off"),
+                            detailWrapper.writtenOffQuantity.toString()
+                        )
+                    }
+                    InfoLine(
+                        tr("Залишок", "Remaining"),
+                        detailWrapper.remainingQuantity.toString()
+                    )
+                    InfoLine(tr("Оціночна вартість", "Estimated value"), "${String.format("%,.2f", detail.estimatedValue)} ₴")
+                    if (detail.description.isNotEmpty()) {
+                        Text(tr("Опис:", "Description:"), fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                        Text(detail.description, fontSize = 13.sp)
+                    }
+                    if (detail.sourceUrl.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedButton(
+                            onClick = {
+                                runCatching {
+                                    val uri = normalizeUrl(detail.sourceUrl)
+                                    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
+                        ) {
+                            Icon(Icons.Default.OpenInBrowser, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(tr("Відкрити сайт", "Open website"))
+                        }
+                        Text(
+                            text = detail.sourceUrl,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { detailItem = null }) { Text(tr("Закрити", "Close")) }
+            }
+        )
+    }
+
+    // Sort dialog
+    if (uiState.showSortDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.toggleSortDialog(false) },
+            title = { Text(tr("Сортувати", "Sort")) },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(
+                        Triple("date_desc", tr("За датою (новіші)", "By date (newest)"), Icons.Default.CalendarMonth),
+                        Triple("date_asc", tr("За датою (старіші)", "By date (oldest)"), Icons.Default.CalendarMonth),
+                        Triple("name_asc", tr("За назвою (А-Я)", "By name (A-Z)"), Icons.Default.SortByAlpha),
+                        Triple("name_desc", tr("За назвою (Я-А)", "By name (Z-A)"), Icons.Default.SortByAlpha),
+                        Triple("value_desc", tr("За вартістю (спадання)", "By value (desc)"), Icons.AutoMirrored.Filled.TrendingDown),
+                        Triple("value_asc", tr("За вартістю (зростання)", "By value (asc)"), Icons.AutoMirrored.Filled.TrendingUp),
+                        Triple("qty_desc", tr("За кількістю (спадання)", "By quantity (desc)"), Icons.AutoMirrored.Filled.TrendingDown),
+                        Triple("qty_asc", tr("За кількістю (зростання)", "By quantity (asc)"), Icons.AutoMirrored.Filled.TrendingUp),
+                        Triple("category", tr("За категорією", "By category"), Icons.Default.Apps),
+                        Triple("material", tr("За матеріалом", "By material"), Icons.Default.Layers)
+                    ).forEach { (value, label, icon) ->
+                        SortFilterRow(
+                            icon = icon,
+                            label = label,
+                            selected = uiState.sortBy == value,
+                            onClick = { viewModel.setSortBy(value) }
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.toggleSortDialog(false) }) {
+                    Text(tr("Закрити", "Close"))
+                }
+            }
+        )
+    }
+
+    // Filter dialog
+    if (uiState.showFilterDialog) {
+        CollectionFilterDialog(
+            uiState = uiState,
+            onDismiss = { viewModel.toggleFilterDialog(false) },
+            onCategorySelected = { viewModel.setFilterCategory(it) },
+            onMaterialSelected = { viewModel.setFilterMaterial(it) },
+            onQualitySelected = { viewModel.setFilterQuality(it) },
+            onSeriesSelected = { viewModel.setFilterSeries(it) },
+            onNominalSelected = { viewModel.setFilterNominal(it) },
+            onClearAll = { viewModel.clearAllFilters() }
+        )
+    }
+
+    // Delete confirmation
+    val toDeleteWrapper = deleteCandidate
+    if (toDeleteWrapper != null) {
+        val toDelete = toDeleteWrapper.item
+        AlertDialog(
+            onDismissRequest = { deleteCandidate = null },
+            title = { Text(tr("Видалити з колекції?", "Delete from collection?")) },
+            text = { Text(tr("Товар «${toDelete.name}» буде видалено з колекції. Цю дію не можна скасувати.", "Item «${toDelete.name}» will be removed from collection. This action cannot be undone.")) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteItem(toDelete)
+                    deleteCandidate = null
+                }) { Text(tr("Видалити", "Delete"), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteCandidate = null }) { Text(tr("Скасувати", "Cancel")) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun InfoLine(label: String, value: String) {
+    if (value.isBlank()) return
+    Row {
+        Text("$label: ", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+        Text(value, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun CollectionItemCard(
+    wrapper: CollectionItemWithStock,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val item = wrapper.item
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Photo or placeholder
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (item.photoPath.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(photoModel(item.photoPath))
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Image,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                if (item.series.isNotEmpty()) {
+                    Text(
+                        item.series,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+                // Формат «Залишок: 2 з 5» — відображає реальний залишок + початкову
+                // кількість, щоб було видно скільки вже продали. Якщо нічого не
+                // продано (sold=0, writtenOff=0) — пишемо просте «Кількість: 5».
+                val remainingLine = if (wrapper.soldQuantity > 0 || wrapper.writtenOffQuantity > 0) {
+                    "${tr("Залишок", "Remaining")}: ${wrapper.remainingQuantity} ${tr("з", "of")} ${item.quantity}"
+                } else {
+                    "${tr("Кількість", "Quantity")}: ${item.quantity}"
+                }
+                Text(
+                    "$remainingLine • ${String.format("%,.2f", item.estimatedValue)} ₴",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+
+            IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = tr("Редагувати", "Edit"),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = tr("Видалити", "Delete"),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddOrEditCollectionDialog(
+    initial: CollectionItem?,
+    errorMessage: String,
+    onDismiss: () -> Unit,
+    onSave: (
+        name: String,
+        series: String,
+        category: String,
+        material: String,
+        nominal: String,
+        quality: String,
+        description: String,
+        photoPath: String,
+        estimatedValue: Double,
+        quantity: Int,
+        sourceUrl: String
+    ) -> Unit
+) {
+    val context = LocalContext.current
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var series by remember { mutableStateOf(initial?.series ?: "") }
+    var category by remember { mutableStateOf(initial?.category ?: "") }
+    var material by remember { mutableStateOf(initial?.material ?: "") }
+    var nominal by remember { mutableStateOf(initial?.nominal ?: "") }
+    var quality by remember { mutableStateOf(initial?.quality ?: "") }
+    var description by remember { mutableStateOf(initial?.description ?: "") }
+    var photoPath by remember { mutableStateOf(initial?.photoPath ?: "") }
+    var sourceUrl by remember { mutableStateOf(initial?.sourceUrl ?: "") }
+    var estimatedValueStr by remember {
+        mutableStateOf(initial?.estimatedValue?.let { if (it == 0.0) "" else it.toString() } ?: "")
+    }
+    var quantityStr by remember { mutableStateOf((initial?.quantity ?: 1).toString()) }
+
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val saved = ImageStorage.copyUriToInternalStorage(context, uri)
+            if (saved != null) photoPath = saved
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnClickOutside = false),
+        title = { Text(if (initial == null) tr("Новий товар колекції", "New collection item") else tr("Редагувати товар", "Edit item")) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Photo picker
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable {
+                                photoLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (photoPath.isNotEmpty()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(photoModel(photoPath))
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = tr("Фото", "Photo"),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    OutlinedButton(onClick = {
+                        photoLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }) {
+                        Text(if (photoPath.isEmpty()) tr("Вибрати фото", "Pick photo") else tr("Змінити фото", "Change photo"))
+                    }
+                }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(tr("Назва *", "Name *")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = series,
+                    onValueChange = { series = it },
+                    label = { Text(tr("Серія", "Series")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text(tr("Категорія", "Category")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = material,
+                    onValueChange = { material = it },
+                    label = { Text(tr("Матеріал", "Material")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = nominal,
+                    onValueChange = { nominal = it },
+                    label = { Text(tr("Номінал", "Nominal")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = quality,
+                    onValueChange = { quality = it },
+                    label = { Text(tr("Якість", "Quality")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = quantityStr,
+                        onValueChange = { quantityStr = it.filter(Char::isDigit) },
+                        label = { Text(tr("Кількість *", "Quantity *")) },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = estimatedValueStr,
+                        onValueChange = { estimatedValueStr = it.filter { c -> c.isDigit() || c == '.' || c == ',' } },
+                        label = { Text(tr("Оціночна, ₴", "Estimated, ₴")) },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true
+                    )
+                }
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text(tr("Опис", "Description")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4
+                )
+                OutlinedTextField(
+                    value = sourceUrl,
+                    onValueChange = { sourceUrl = it },
+                    label = {
+                        Text(
+                            tr(
+                                "Посилання на сайт (фото/відео)",
+                                "Website link (photo/video)"
+                            )
+                        )
+                    },
+                    placeholder = { Text("https://") },
+                    leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                if (errorMessage.isNotEmpty()) {
+                    Text(
+                        errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val qty = quantityStr.toIntOrNull() ?: 0
+                val est = estimatedValueStr.replace(',', '.').toDoubleOrNull() ?: 0.0
+                onSave(
+                    name, series, category, material, nominal, quality,
+                    description, photoPath, est, qty, sourceUrl
+                )
+            }) {
+                Text(if (initial == null) tr("Додати", "Add") else tr("Зберегти", "Save"))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(tr("Скасувати", "Cancel")) }
+        }
+    )
+}
+
+@Composable
+private fun CollectionFilterDialog(
+    uiState: com.numisproerp.ui.viewmodel.MyCollectionUiState,
+    onDismiss: () -> Unit,
+    onCategorySelected: (String) -> Unit,
+    onMaterialSelected: (String) -> Unit,
+    onQualitySelected: (String) -> Unit,
+    onSeriesSelected: (String) -> Unit,
+    onNominalSelected: (String) -> Unit,
+    onClearAll: () -> Unit
+) {
+    var activeDimension by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                if (activeDimension == null) tr("Фільтр", "Filter")
+                else tr("Оберіть значення", "Select value")
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (activeDimension == null) {
+                    // Tree root: choose filter dimension
+                    FilterDimensionRow(
+                        label = tr("Категорія", "Category"),
+                        icon = Icons.Default.Apps,
+                        selected = uiState.filterCategory,
+                        empty = uiState.categories.isEmpty(),
+                        onClick = { activeDimension = "category" }
+                    )
+                    FilterDimensionRow(
+                        label = tr("Матеріал", "Material"),
+                        icon = Icons.Default.Layers,
+                        selected = uiState.filterMaterial,
+                        empty = uiState.materials.isEmpty(),
+                        onClick = { activeDimension = "material" }
+                    )
+                    FilterDimensionRow(
+                        label = tr("Якість", "Quality"),
+                        icon = Icons.Default.Star,
+                        selected = uiState.filterQuality,
+                        empty = uiState.qualities.isEmpty(),
+                        onClick = { activeDimension = "quality" }
+                    )
+                    FilterDimensionRow(
+                        label = tr("Серія", "Series"),
+                        icon = Icons.Default.Category,
+                        selected = uiState.filterSeries,
+                        empty = uiState.seriesList.isEmpty(),
+                        onClick = { activeDimension = "series" }
+                    )
+                    FilterDimensionRow(
+                        label = tr("Номінал", "Nominal"),
+                        icon = Icons.Default.Numbers,
+                        selected = uiState.filterNominal,
+                        empty = uiState.nominals.isEmpty(),
+                        onClick = { activeDimension = "nominal" }
+                    )
+                } else {
+                    val (options, currentValue, apply) = when (activeDimension) {
+                        "category" -> Triple(uiState.categories, uiState.filterCategory, onCategorySelected)
+                        "material" -> Triple(uiState.materials, uiState.filterMaterial, onMaterialSelected)
+                        "quality" -> Triple(uiState.qualities, uiState.filterQuality, onQualitySelected)
+                        "series" -> Triple(uiState.seriesList, uiState.filterSeries, onSeriesSelected)
+                        "nominal" -> Triple(uiState.nominals, uiState.filterNominal, onNominalSelected)
+                        else -> Triple(emptyList(), "", {} as (String) -> Unit)
+                    }
+                    val dimIcon = when (activeDimension) {
+                        "category" -> Icons.Default.Apps
+                        "material" -> Icons.Default.Layers
+                        "quality" -> Icons.Default.Star
+                        "series" -> Icons.Default.Category
+                        "nominal" -> Icons.Default.Numbers
+                        else -> Icons.Default.Tune
+                    }
+
+                    SortFilterRow(
+                        icon = Icons.Default.FilterList,
+                        label = tr("Усі", "All"),
+                        selected = currentValue.isEmpty(),
+                        onClick = {
+                            apply("")
+                            activeDimension = null
+                        }
+                    )
+                    options.forEach { value ->
+                        SortFilterRow(
+                            icon = dimIcon,
+                            label = value,
+                            selected = currentValue == value,
+                            onClick = {
+                                apply(value)
+                                activeDimension = null
+                            }
+                        )
+                    }
+                    if (options.isEmpty()) {
+                        Text(
+                            tr("Немає значень для цього критерію", "No values for this criterion"),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (activeDimension == null) {
+                TextButton(onClick = { onClearAll() }) {
+                    Text(tr("Очистити", "Clear all"))
+                }
+            } else {
+                TextButton(onClick = { activeDimension = null }) {
+                    Text(tr("Назад", "Back"))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(tr("Закрити", "Close"))
+            }
+        }
+    )
+}
+
+@Composable
+private fun FilterDimensionRow(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: String,
+    empty: Boolean,
+    onClick: () -> Unit
+) {
+    SortFilterRow(
+        icon = icon,
+        label = label,
+        selected = selected.isNotEmpty(),
+        onClick = if (empty) ({}) else onClick,
+        showRadio = false,
+        trailing = {
+            Text(
+                text = when {
+                    selected.isNotEmpty() -> selected
+                    empty -> tr("немає", "none")
+                    else -> tr("›", "›")
+                },
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+        }
+    )
+}
+
+
+/**
+ * Нормалізує користувацький рядок з посиланням до Uri, придатного для
+ * `Intent.ACTION_VIEW`. Якщо в адресі немає схеми (`http://`, `https://`),
+ * додаємо `https://` за замовчуванням.
+ */
+private fun normalizeUrl(raw: String): Uri {
+    val trimmed = raw.trim()
+    val withScheme = if (trimmed.startsWith("http://", ignoreCase = true) ||
+        trimmed.startsWith("https://", ignoreCase = true)) {
+        trimmed
+    } else {
+        "https://$trimmed"
+    }
+    return Uri.parse(withScheme)
+}
