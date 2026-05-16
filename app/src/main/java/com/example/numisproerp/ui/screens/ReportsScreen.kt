@@ -1,5 +1,6 @@
 package com.numisproerp.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -66,7 +69,19 @@ import com.numisproerp.ui.theme.IOSDesign
 import com.numisproerp.ui.theme.IOSIconChip
 import com.numisproerp.ui.viewmodel.ReportsViewModel
 import com.numisproerp.ui.viewmodel.getStartOfMonthStatic
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.numisproerp.ui.viewmodel.MonthlyStats
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import kotlin.math.ceil
+import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,6 +179,10 @@ fun ReportsScreen(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                    }
+
+                    item {
+                        MonthlyDynamicsChart(monthly = uiState.monthlyData)
                     }
 
                     items(uiState.monthlyData) { monthData ->
@@ -622,4 +641,223 @@ fun ReportsDetailDialog(
             }
         }
     )
+}
+
+// ============================================================================
+// MonthlyDynamicsChart – Canvas-based line chart showing Revenue / Expenses / Profit
+// across the 6 most recent months. Oldest on the left, current on the right.
+// ============================================================================
+@Composable
+fun MonthlyDynamicsChart(monthly: List<MonthlyStats>) {
+    val data = remember(monthly) { monthly.asReversed() }
+    val current = monthly.firstOrNull()?.month ?: ""
+
+    val labelFormat = remember { SimpleDateFormat("LLL yyyy", Locale("uk")) }
+    val now = remember { System.currentTimeMillis() }
+    val shortLabels = remember(data, now) {
+        val calendar = Calendar.getInstance()
+        val n = data.size
+        List(n) { idx ->
+            val offset = (n - 1) - idx
+            calendar.timeInMillis = now
+            calendar.add(Calendar.MONTH, -offset)
+            labelFormat.format(Date(calendar.timeInMillis))
+                .trimEnd('.')
+                .replaceFirstChar { it.titlecase(Locale("uk")) }
+        }
+    }
+
+    val maxValueRaw = data.maxOfOrNull { max(max(it.revenue, it.expenses), it.profit) } ?: 0.0
+    val minValueRaw = data.minOfOrNull { kotlin.math.min(kotlin.math.min(it.revenue, it.expenses), it.profit) } ?: 0.0
+    val niceMax = niceCeil(maxValueRaw)
+    val niceMin = if (minValueRaw < 0.0) -niceCeil(-minValueRaw) else 0.0
+    val span = (niceMax - niceMin).coerceAtLeast(1.0)
+
+    val gridSteps = 4
+    val yLabels = remember(niceMax, niceMin) {
+        List(gridSteps + 1) { i ->
+            val value = niceMin + span * (gridSteps - i) / gridSteps
+            formatAxisValue(value)
+        }
+    }
+
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val gridColor = onSurface.copy(alpha = 0.12f)
+    val axisLabelColor = onSurface.copy(alpha = 0.55f)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = current,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ChartLegendDot(color = AccentGreen, label = tr("Дохід", "Revenue"))
+                    ChartLegendDot(color = AccentRed, label = tr("Витрати", "Expenses"))
+                    ChartLegendDot(color = AccentOrange, label = tr("Прибуток", "Profit"))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(56.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    yLabels.forEach { label ->
+                        Text(text = label, fontSize = 10.sp, color = axisLabelColor)
+                    }
+                }
+
+                Canvas(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    val w = size.width
+                    val h = size.height
+                    val left = 4.dp.toPx()
+                    val right = w - 4.dp.toPx()
+                    val top = 6.dp.toPx()
+                    val bottom = h - 6.dp.toPx()
+                    val plotW = right - left
+                    val plotH = bottom - top
+
+                    val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+                    for (i in 0..gridSteps) {
+                        val y = top + plotH * i / gridSteps
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(left, y),
+                            end = Offset(right, y),
+                            strokeWidth = 1.dp.toPx(),
+                            pathEffect = dash
+                        )
+                    }
+
+                    if (niceMin < 0.0 && niceMax > 0.0) {
+                        val ratio = ((niceMax - 0.0) / span).toFloat()
+                        val zeroY = top + plotH * ratio
+                        drawLine(
+                            color = onSurface.copy(alpha = 0.25f),
+                            start = Offset(left, zeroY),
+                            end = Offset(right, zeroY),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+
+                    val n = data.size
+                    if (n == 0) return@Canvas
+                    val stepX = if (n > 1) plotW / (n - 1) else 0f
+
+                    fun valueToY(value: Double): Float {
+                        val ratio = ((niceMax - value) / span).toFloat()
+                        return top + plotH * ratio.coerceIn(0f, 1f)
+                    }
+
+                    fun drawSeries(values: List<Double>, color: androidx.compose.ui.graphics.Color) {
+                        if (values.isEmpty()) return
+                        val path = Path()
+                        values.forEachIndexed { idx, v ->
+                            val x = left + stepX * idx
+                            val y = valueToY(v)
+                            if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        drawPath(
+                            path = path,
+                            color = color,
+                            style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                        values.forEachIndexed { idx, v ->
+                            val x = left + stepX * idx
+                            val y = valueToY(v)
+                            drawCircle(color = color, radius = 3.2.dp.toPx(), center = Offset(x, y))
+                            drawCircle(color = androidx.compose.ui.graphics.Color.White, radius = 1.2.dp.toPx(), center = Offset(x, y))
+                        }
+                    }
+
+                    drawSeries(data.map { it.revenue }, AccentGreen)
+                    drawSeries(data.map { it.expenses }, AccentRed)
+                    drawSeries(data.map { it.profit }, AccentOrange)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.width(56.dp))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    shortLabels.forEach { label ->
+                        Text(text = label, fontSize = 10.sp, color = axisLabelColor)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartLegendDot(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = label, fontSize = 11.sp)
+    }
+}
+
+private fun niceCeil(value: Double): Double {
+    if (value <= 0.0) return 1000.0
+    val exponent = kotlin.math.floor(kotlin.math.log10(value))
+    val pow = Math.pow(10.0, exponent)
+    val fraction = value / pow
+    val niceFraction = when {
+        fraction <= 1.0 -> 1.0
+        fraction <= 1.5 -> 1.5
+        fraction <= 2.0 -> 2.0
+        fraction <= 3.0 -> 3.0
+        fraction <= 5.0 -> 5.0
+        fraction <= 7.5 -> 7.5
+        else -> 10.0
+    }
+    return ceil(niceFraction) * pow
+}
+
+private fun formatAxisValue(value: Double): String {
+    val abs = kotlin.math.abs(value)
+    val sign = if (value < 0) "-" else ""
+    return when {
+        abs >= 1_000_000.0 -> "$sign${String.format("%,.1fM", abs / 1_000_000.0)} ₴"
+        abs >= 1_000.0 -> "$sign${String.format("%,.0f", abs).replace(',', ' ')} ₴"
+        else -> "$sign${String.format("%,.0f", abs)} ₴"
+    }
 }

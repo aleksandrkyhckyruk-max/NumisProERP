@@ -19,12 +19,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.outlined.LocalAtm
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,23 +87,35 @@ fun DetailsScreen(
     var selectedSupplierIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var selectedClientIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showFilter by remember { mutableStateOf(false) }
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+    var sortMode by remember(type) {
+        mutableStateOf(
+            when (type) {
+                "purchases" -> DetailsSort.COUNTERPARTY_ASC
+                "profit" -> DetailsSort.COUNTERPARTY_ASC
+                else -> DetailsSort.DATE_DESC
+            }
+        )
+    }
 
     val unknownSupplierText = tr("Невідомий постачальник", "Unknown supplier")
     val unknownClientText = tr("Невідомий клієнт", "Unknown client")
     val purchaseLabel = tr("Закупівля", "Purchase")
     val saleLabel = tr("Продаж", "Sale")
 
-    val filteredPurchases by remember(purchases, selectedSupplierIds) {
+    val filteredPurchases by remember(purchases, selectedSupplierIds, sortMode, supplierNames) {
         derivedStateOf {
-            if (selectedSupplierIds.isEmpty()) purchases
+            val base = if (selectedSupplierIds.isEmpty()) purchases
             else purchases.filter { it.supplierId in selectedSupplierIds }
+            base.sortedWith(purchaseComparator(sortMode, supplierNames, unknownSupplierText))
         }
     }
 
-    val filteredSales by remember(sales, selectedClientIds) {
+    val filteredSales by remember(sales, selectedClientIds, sortMode, clientNames) {
         derivedStateOf {
-            if (selectedClientIds.isEmpty()) sales
+            val base = if (selectedClientIds.isEmpty()) sales
             else sales.filter { it.clientId in selectedClientIds }
+            base.sortedWith(saleComparator(sortMode, clientNames, unknownClientText))
         }
     }
 
@@ -190,6 +205,25 @@ fun DetailsScreen(
                         modifier = Modifier.weight(1f)
                     )
                     if (type == "purchases" || type == "profit") {
+                        Box {
+                            IconButton(onClick = { sortMenuExpanded = true }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = tr("Сортувати", "Sort"),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            DetailsSortMenu(
+                                expanded = sortMenuExpanded,
+                                onDismiss = { sortMenuExpanded = false },
+                                isPurchase = type == "purchases",
+                                current = sortMode,
+                                onSelect = { newMode ->
+                                    sortMode = newMode
+                                    sortMenuExpanded = false
+                                }
+                            )
+                        }
                         IconButton(onClick = { showFilter = !showFilter }) {
                             Icon(
                                 Icons.Default.FilterList,
@@ -353,6 +387,79 @@ fun DetailsScreen(
                 }
             }
         }
+    }
+}
+
+enum class DetailsSort {
+    DATE_DESC,
+    DATE_ASC,
+    COUNTERPARTY_ASC,
+    COUNTERPARTY_DESC,
+    AMOUNT_DESC,
+    AMOUNT_ASC
+}
+
+private fun purchaseComparator(
+    mode: DetailsSort,
+    supplierNames: Map<String, String>,
+    unknownSupplierText: String
+): Comparator<Purchase> = when (mode) {
+    DetailsSort.DATE_DESC -> compareByDescending { it.date }
+    DetailsSort.DATE_ASC -> compareBy { it.date }
+    DetailsSort.COUNTERPARTY_ASC -> compareBy(String.CASE_INSENSITIVE_ORDER) { supplierNames[it.supplierId] ?: unknownSupplierText }
+    DetailsSort.COUNTERPARTY_DESC -> compareByDescending(String.CASE_INSENSITIVE_ORDER) { supplierNames[it.supplierId] ?: unknownSupplierText }
+    DetailsSort.AMOUNT_DESC -> compareByDescending { it.totalAmount }
+    DetailsSort.AMOUNT_ASC -> compareBy { it.totalAmount }
+}
+
+private fun saleComparator(
+    mode: DetailsSort,
+    clientNames: Map<String, String>,
+    unknownClientText: String
+): Comparator<Sale> = when (mode) {
+    DetailsSort.DATE_DESC -> compareByDescending { it.date }
+    DetailsSort.DATE_ASC -> compareBy { it.date }
+    DetailsSort.COUNTERPARTY_ASC -> compareBy(String.CASE_INSENSITIVE_ORDER) { clientNames[it.clientId] ?: unknownClientText }
+    DetailsSort.COUNTERPARTY_DESC -> compareByDescending(String.CASE_INSENSITIVE_ORDER) { clientNames[it.clientId] ?: unknownClientText }
+    DetailsSort.AMOUNT_DESC -> compareByDescending { it.totalAmount }
+    DetailsSort.AMOUNT_ASC -> compareBy { it.totalAmount }
+}
+
+@Composable
+fun DetailsSortMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    isPurchase: Boolean,
+    current: DetailsSort,
+    onSelect: (DetailsSort) -> Unit
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        val counterLabelAsc = if (isPurchase) tr("Постачальник A→Я", "Supplier A→Z") else tr("Клієнт A→Я", "Client A→Z")
+        val counterLabelDesc = if (isPurchase) tr("Постачальник Я→A", "Supplier Z→A") else tr("Клієнт Я→A", "Client Z→A")
+        DropdownMenuItem(
+            text = { Text(counterLabelAsc + if (current == DetailsSort.COUNTERPARTY_ASC) "  ✓" else "") },
+            onClick = { onSelect(DetailsSort.COUNTERPARTY_ASC) }
+        )
+        DropdownMenuItem(
+            text = { Text(counterLabelDesc + if (current == DetailsSort.COUNTERPARTY_DESC) "  ✓" else "") },
+            onClick = { onSelect(DetailsSort.COUNTERPARTY_DESC) }
+        )
+        DropdownMenuItem(
+            text = { Text(tr("Дата ↓ (нові)", "Date ↓ (new)") + if (current == DetailsSort.DATE_DESC) "  ✓" else "") },
+            onClick = { onSelect(DetailsSort.DATE_DESC) }
+        )
+        DropdownMenuItem(
+            text = { Text(tr("Дата ↑ (старі)", "Date ↑ (old)") + if (current == DetailsSort.DATE_ASC) "  ✓" else "") },
+            onClick = { onSelect(DetailsSort.DATE_ASC) }
+        )
+        DropdownMenuItem(
+            text = { Text(tr("Сума ↓", "Amount ↓") + if (current == DetailsSort.AMOUNT_DESC) "  ✓" else "") },
+            onClick = { onSelect(DetailsSort.AMOUNT_DESC) }
+        )
+        DropdownMenuItem(
+            text = { Text(tr("Сума ↑", "Amount ↑") + if (current == DetailsSort.AMOUNT_ASC) "  ✓" else "") },
+            onClick = { onSelect(DetailsSort.AMOUNT_ASC) }
+        )
     }
 }
 

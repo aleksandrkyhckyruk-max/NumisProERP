@@ -90,6 +90,19 @@ val OlegV2OnSurface = Color(0xFFFFFFFF)
 val OlegV2OnSurfaceVariant = Color(0xFFB0B0B0)
 
 // =============================================================================
+// OlegSmile Light: світла бежева тема із золотим акцентом.
+// Емблема і значки залишаються тими самими; фон — теплий крем/беж.
+// =============================================================================
+val OlegLightBackground = Color(0xFFFAF6EC)
+val OlegLightSurface = Color(0xFFFFFFFF)
+val OlegLightSurfaceVariant = Color(0xFFF1ECDE)
+val OlegLightPrimaryContainer = Color(0xFFFFFFFF)
+val OlegLightOnPrimaryContainer = Color(0xFF1A1A1A)
+val OlegLightOnSurface = Color(0xFF1A1A1A)
+val OlegLightOnSurfaceVariant = Color(0xFF6B6B6B)
+val OlegLightGold = Color(0xFFB89230)
+
+// =============================================================================
 // OceanGlass: глибокий темно-синій фон, бірюзовий рамки-сяйва, м'ятний
 // акцент для сум і прибутку, прозорі frosted-glass картки.
 // =============================================================================

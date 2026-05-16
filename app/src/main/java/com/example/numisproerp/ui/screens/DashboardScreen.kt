@@ -132,7 +132,7 @@ fun DashboardContent(
                 value = String.format("%,.2f ₴", data.totalBalance),
                 valueColor = if (data.totalBalance >= 0) AccentGreen else AccentRed,
                 backgroundColor = MaterialTheme.colorScheme.primaryContainer,
-                onClick = { onNavigateToDetails("balance", balanceTitle) }
+                onClick = { onNavigateToReports() }
             )
         }
 
@@ -197,8 +197,8 @@ fun DashboardContent(
 @Composable
 private fun DashboardHeader(currentDate: String) {
     val theme = LocalAppTheme.current
-    if (theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2) {
-        val titleText = "OlegSmile"
+    if (theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 || theme == AppTheme.OLEG_SMILE_LIGHT) {
+        val titleText = if (theme == AppTheme.OLEG_SMILE_LIGHT) "OlegSmile Light" else "OlegSmile"
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -445,7 +445,7 @@ fun QuickAccessButton(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top = 6.dp, bottom = 4.dp, start = 4.dp, end = 4.dp)
         ) {
-            if (theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2) {
+            if (theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 || theme == AppTheme.OLEG_SMILE_LIGHT) {
                 Image(
                     painter = painterResource(id = tileRes),
                     contentDescription = label,
