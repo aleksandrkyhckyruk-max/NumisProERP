@@ -266,13 +266,18 @@ private fun DashboardHeader(currentDate: String) {
 
 @Composable
 private fun PremiumDashboardHeader(currentDate: String) {
-    // Нова "Преміум 3D" тема — без золотої емблеми лева:
-    // акцент робиться на яскравих 3D-плитках розділів.
+    // Преміум 3D — окрема емблема "OLEG-SMILE Coin" з прозорим фоном.
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Image(
+            painter = painterResource(id = R.drawable.oleg_smile_coin_emblem),
+            contentDescription = "OLEG-SMILE Coin",
+            modifier = Modifier.size(72.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = "NumisPro",
@@ -296,7 +301,7 @@ private fun PremiumDashboardHeader(currentDate: String) {
                 text = currentDate,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }
@@ -497,7 +502,8 @@ fun QuickAccessButton(
     lightTileRes: Int? = null,
     /**
      * Нові 3D-іконки для преміум-теми ([AppTheme.OLEG_SMILE_PREMIUM]).
-     * Коли `null` — fallback на [lightTileRes] або на векторну іконку.
+     * Коли `null` — fallback на векторну іконку без фону (iOS/Android-стиль),
+     * щоб не змішувати стилі двох різних тем.
      */
     premiumTileRes: Int? = null,
     lightTint: Color = Color.Unspecified,
@@ -505,6 +511,16 @@ fun QuickAccessButton(
     onClick: () -> Unit
 ) {
     val theme = LocalAppTheme.current
+    if (theme == AppTheme.OLEG_SMILE_PREMIUM) {
+        PremiumQuickAccessButton(
+            modifier = modifier,
+            icon = icon,
+            premiumTileRes = premiumTileRes,
+            label = label,
+            onClick = onClick
+        )
+        return
+    }
     val tileWidth = 82.dp
     val tileHeight = 104.dp
     val tileCorner = 18.dp
@@ -532,30 +548,6 @@ fun QuickAccessButton(
                             .size(68.dp)
                             .clip(RoundedCornerShape(14.dp))
                     )
-                }
-                AppTheme.OLEG_SMILE_PREMIUM -> {
-                    // Нова "Преміум 3D" тема — яскраві 3D-плитки (tile_premium_*).
-                    // Якщо для розділу немає преміум-плитки (напр. "Витрати"),
-                    // показуємо нейтральний векторний chip замість light-плитки,
-                    // щоб не змішувати стилі двох різних тем.
-                    if (premiumTileRes != null) {
-                        Image(
-                            painter = painterResource(id = premiumTileRes),
-                            contentDescription = label,
-                            modifier = Modifier.size(68.dp)
-                        )
-                    } else {
-                        val resolvedTint = if (lightTint != Color.Unspecified) lightTint else MaterialTheme.colorScheme.primary
-                        IOSIconChip(
-                            icon = icon,
-                            tint = resolvedTint,
-                            chipSize = 68.dp,
-                            iconSize = 36.dp,
-                            cornerRadius = 14.dp,
-                            backgroundAlpha = 0.18f,
-                            contentDescription = label
-                        )
-                    }
                 }
                 AppTheme.OLEG_SMILE_LIGHT -> {
                     if (lightTileRes != null) {
@@ -599,6 +591,58 @@ fun QuickAccessButton(
                 lineHeight = 12.sp
             )
         }
+    }
+}
+
+/**
+ * Окрема версія кнопки для теми "Преміум 3D".
+ * Без сірого фону-чипа, у стилі іконок Samsung / iOS — велика 3D-плитка з підписом.
+ * Для розділів без преміум-іконки (напр. "Витрати") показуємо просту векторну іконку
+ * без кольорового фону.
+ */
+@Composable
+private fun PremiumQuickAccessButton(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    premiumTileRes: Int?,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .width(82.dp)
+            .clickable { onClick() }
+            .padding(vertical = 4.dp, horizontal = 2.dp)
+    ) {
+        if (premiumTileRes != null) {
+            Image(
+                painter = painterResource(id = premiumTileRes),
+                contentDescription = label,
+                modifier = Modifier.size(72.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier.size(72.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 2,
+            lineHeight = 13.sp
+        )
     }
 }
 
