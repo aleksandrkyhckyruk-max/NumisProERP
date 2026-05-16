@@ -20,8 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.LocalAtm
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,6 +62,7 @@ import com.numisproerp.ui.theme.AccentYellow
 import com.numisproerp.ui.theme.IOSDesign
 import com.numisproerp.ui.theme.IOSIconChip
 import com.numisproerp.ui.theme.LocalAppTheme
+import com.numisproerp.ui.theme.OlegPremiumTitleCoral
 import com.numisproerp.ui.viewmodel.DashboardViewModel
 import com.numisproerp.ui.viewmodel.DashboardData
 import com.numisproerp.ui.viewmodel.RecentTransaction
@@ -200,6 +203,10 @@ fun DashboardContent(
 @Composable
 private fun DashboardHeader(currentDate: String) {
     val theme = LocalAppTheme.current
+    if (theme == AppTheme.OLEG_SMILE_PREMIUM) {
+        PremiumDashboardHeader(currentDate = currentDate)
+        return
+    }
     if (theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 || theme == AppTheme.OLEG_SMILE_LIGHT) {
         val titleText = if (theme == AppTheme.OLEG_SMILE_LIGHT) "OlegSmile Light" else "OlegSmile"
         Row(
@@ -252,6 +259,85 @@ private fun DashboardHeader(currentDate: String) {
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PremiumDashboardHeader(currentDate: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = "NumisPro",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OlegPremiumTitleCoral
+                )
+                Text(
+                    text = "ERP",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                text = tr("Облік та автоматизація", "Accounting & automation"),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+        Image(
+            painter = painterResource(id = R.drawable.oleg_smile_emblem),
+            contentDescription = "OlegSmile",
+            modifier = Modifier
+                .size(96.dp)
+                .clip(RoundedCornerShape(48.dp))
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.AccountCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Text(
+                text = currentDate,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
     }
@@ -476,7 +562,7 @@ fun QuickAccessButton(
                             .clip(RoundedCornerShape(14.dp))
                     )
                 }
-                AppTheme.OLEG_SMILE_LIGHT -> {
+                AppTheme.OLEG_SMILE_LIGHT, AppTheme.OLEG_SMILE_PREMIUM -> {
                     if (lightTileRes != null) {
                         Image(
                             painter = painterResource(id = lightTileRes),
