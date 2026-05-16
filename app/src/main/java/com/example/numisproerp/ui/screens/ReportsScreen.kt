@@ -80,7 +80,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.math.ceil
 import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -849,7 +848,7 @@ private fun niceCeil(value: Double): Double {
         fraction <= 7.5 -> 7.5
         else -> 10.0
     }
-    return ceil(niceFraction) * pow
+    return niceFraction * pow
 }
 
 private fun formatAxisValue(value: Double): String {
