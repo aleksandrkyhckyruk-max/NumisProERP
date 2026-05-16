@@ -266,6 +266,8 @@ private fun DashboardHeader(currentDate: String) {
 
 @Composable
 private fun PremiumDashboardHeader(currentDate: String) {
+    // Нова "Преміум 3D" тема — без золотої емблеми лева:
+    // акцент робиться на яскравих 3D-плитках розділів.
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -274,13 +276,13 @@ private fun PremiumDashboardHeader(currentDate: String) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = "NumisPro",
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = OlegPremiumTitleCoral
                 )
                 Text(
                     text = "ERP",
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -290,52 +292,11 @@ private fun PremiumDashboardHeader(currentDate: String) {
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
-        }
-        Image(
-            painter = painterResource(id = R.drawable.oleg_premium_emblem),
-            contentDescription = "OlegSmile",
-            modifier = Modifier.size(110.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(
-            horizontalAlignment = Alignment.End
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.Notifications,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.AccountCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
             Text(
                 text = currentDate,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                modifier = Modifier.padding(top = 6.dp)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
     }
@@ -444,6 +405,7 @@ fun QuickAccessRow(
             icon = Icons.Outlined.LocalAtm,
             tileRes = R.drawable.tile_purchase,
             lightTileRes = R.drawable.tile_light_purchase,
+            premiumTileRes = R.drawable.tile_premium_purchase,
             lightTint = AccentOrange,
             label = tr("Закупівля", "Purchase"),
             onClick = onPurchaseClick
@@ -452,6 +414,7 @@ fun QuickAccessRow(
             icon = Icons.Filled.ShoppingCart,
             tileRes = R.drawable.tile_sale,
             lightTileRes = R.drawable.tile_light_sale,
+            premiumTileRes = R.drawable.tile_premium_sale,
             lightTint = AccentGreen,
             label = tr("Продаж", "Sale"),
             onClick = onSaleClick
@@ -460,6 +423,7 @@ fun QuickAccessRow(
             icon = Icons.Filled.Store,
             tileRes = R.drawable.tile_stock,
             lightTileRes = R.drawable.tile_light_stock,
+            premiumTileRes = R.drawable.tile_premium_stock,
             lightTint = AccentBlue,
             label = tr("Склад", "Stock"),
             onClick = onStockClick
@@ -468,6 +432,7 @@ fun QuickAccessRow(
             icon = Icons.Filled.People,
             tileRes = R.drawable.tile_clients,
             lightTileRes = R.drawable.tile_light_clients,
+            premiumTileRes = R.drawable.tile_premium_clients,
             lightTint = AccentTeal,
             label = tr("Клієнти", "Clients"),
             onClick = onClientsClick
@@ -490,6 +455,7 @@ fun QuickAccessRow2(
             icon = Icons.Outlined.BarChart,
             tileRes = R.drawable.tile_reports,
             lightTileRes = R.drawable.tile_light_reports,
+            premiumTileRes = R.drawable.tile_premium_reports,
             lightTint = AccentYellow,
             label = tr("Звіти", "Reports"),
             onClick = onReportsClick
@@ -498,6 +464,7 @@ fun QuickAccessRow2(
             icon = Icons.Filled.People,
             tileRes = R.drawable.tile_suppliers,
             lightTileRes = R.drawable.tile_light_suppliers,
+            premiumTileRes = R.drawable.tile_premium_suppliers,
             lightTint = AccentPurple,
             label = tr("Постачальники", "Suppliers"),
             onClick = onSuppliersClick
@@ -514,6 +481,7 @@ fun QuickAccessRow2(
             icon = Icons.Outlined.BarChart,
             tileRes = R.drawable.tile_collection,
             lightTileRes = R.drawable.tile_light_collection,
+            premiumTileRes = R.drawable.tile_premium_collection,
             lightTint = AccentBlue,
             label = tr("Моя колекція", "Collection"),
             onClick = onDocumentsClick
@@ -527,6 +495,11 @@ fun QuickAccessButton(
     icon: ImageVector,
     tileRes: Int,
     lightTileRes: Int? = null,
+    /**
+     * Нові 3D-іконки для преміум-теми ([AppTheme.OLEG_SMILE_PREMIUM]).
+     * Коли `null` — fallback на [lightTileRes] або на векторну іконку.
+     */
+    premiumTileRes: Int? = null,
     lightTint: Color = Color.Unspecified,
     label: String,
     onClick: () -> Unit
@@ -560,7 +533,29 @@ fun QuickAccessButton(
                             .clip(RoundedCornerShape(14.dp))
                     )
                 }
-                AppTheme.OLEG_SMILE_LIGHT, AppTheme.OLEG_SMILE_PREMIUM -> {
+                AppTheme.OLEG_SMILE_PREMIUM -> {
+                    // Нова "Преміум 3D" тема — яскраві 3D-плитки (tile_premium_*).
+                    val res = premiumTileRes ?: lightTileRes
+                    if (res != null) {
+                        Image(
+                            painter = painterResource(id = res),
+                            contentDescription = label,
+                            modifier = Modifier.size(68.dp)
+                        )
+                    } else {
+                        val resolvedTint = if (lightTint != Color.Unspecified) lightTint else MaterialTheme.colorScheme.primary
+                        IOSIconChip(
+                            icon = icon,
+                            tint = resolvedTint,
+                            chipSize = 68.dp,
+                            iconSize = 36.dp,
+                            cornerRadius = 14.dp,
+                            backgroundAlpha = 0.18f,
+                            contentDescription = label
+                        )
+                    }
+                }
+                AppTheme.OLEG_SMILE_LIGHT -> {
                     if (lightTileRes != null) {
                         Image(
                             painter = painterResource(id = lightTileRes),

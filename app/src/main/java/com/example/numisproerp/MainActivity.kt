@@ -88,12 +88,17 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.numisproerp.R
+import com.numisproerp.data.settings.AppTheme
 import com.numisproerp.data.settings.SettingsManager
 import com.numisproerp.ui.i18n.LocalAppLanguage
 import com.numisproerp.ui.i18n.tr
 import com.numisproerp.ui.navigation.NavGraph
 import com.numisproerp.ui.navigation.Screen
 import com.numisproerp.ui.splash.SplashVideoScreen
+import com.numisproerp.ui.theme.LocalAppTheme
 import com.numisproerp.ui.theme.NumisProERPTheme
 import com.numisproerp.ui.viewmodel.NotificationsViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -163,7 +168,7 @@ fun NumisProERPNavigation() {
         DrawerItem(tr("Додати товар", "Add product"), Screen.Purchase.route, false, Icons.Default.Add),
         DrawerItem(tr("Товари", "Products"), Screen.Products.route, false, Icons.Outlined.Inventory2),
         DrawerItem(tr("Мої замітки", "My Notes"), Screen.MyNotes.route, false, Icons.Outlined.Edit),
-        DrawerItem(tr("Моя збірка", "My Bundle"), Screen.MyBundle.route, false, Icons.Default.Build),
+        // "Моя збірка" винесено в нижню панель навігації — між "Каталог" і "Склад".
         DrawerItem(tr("Історія продажів", "Sales History"), Screen.SalesHistory.route, false, Icons.Outlined.Sell),
         DrawerItem(tr("Документи", "Documents"), Screen.Documents.route, false, Icons.Outlined.Description),
         DrawerItem(tr("Витрати", "Expenses"), Screen.Expenses.route, false, Icons.Outlined.Receipt),
@@ -319,11 +324,34 @@ fun TopBar(
 @Composable
 fun BottomBar(navController: NavHostController) {
     val context = LocalContext.current
+    val theme = LocalAppTheme.current
+    val isPremium = theme == AppTheme.OLEG_SMILE_PREMIUM
     val items = listOf(
-        BottomNavItem(tr("Головна", "Home"), Icons.Default.Home, Screen.Dashboard.route, false),
-        BottomNavItem(tr("Каталог", "Catalog"), Icons.Default.Store, Screen.Catalog.route, false),
-        BottomNavItem(tr("Склад", "Stock"), Icons.Default.Store, Screen.Stock.route, false),
-        BottomNavItem(tr("Налаштування", "Settings"), Icons.Default.Settings, Screen.Settings.route, false)
+        BottomNavItem(tr("Головна", "Home"), Icons.Default.Home, null, Screen.Dashboard.route, false),
+        BottomNavItem(
+            tr("Каталог", "Catalog"),
+            Icons.Default.Store,
+            R.drawable.tile_premium_catalog,
+            Screen.Catalog.route,
+            false
+        ),
+        // "Моя збірка" — винесено з бокового меню в нижню панель,
+        // розташована між "Каталог" і "Склад".
+        BottomNavItem(
+            tr("Моя збірка", "My Bundle"),
+            Icons.Default.Build,
+            R.drawable.tile_premium_collection,
+            Screen.MyBundle.route,
+            false
+        ),
+        BottomNavItem(
+            tr("Склад", "Stock"),
+            Icons.Default.Store,
+            R.drawable.tile_premium_stock,
+            Screen.Stock.route,
+            false
+        ),
+        BottomNavItem(tr("Налаштування", "Settings"), Icons.Default.Settings, null, Screen.Settings.route, false)
     )
     val inDevSuffix = tr(" в розробці", " in development")
 
@@ -341,7 +369,17 @@ fun BottomBar(navController: NavHostController) {
                         }
                     }
                 },
-                icon = { Icon(item.icon, contentDescription = item.title) },
+                icon = {
+                    if (isPremium && item.tileRes != null) {
+                        Image(
+                            painter = painterResource(id = item.tileRes),
+                            contentDescription = item.title,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    } else {
+                        Icon(item.icon, contentDescription = item.title)
+                    }
+                },
                 label = { Text(item.title) }
             )
         }
@@ -349,4 +387,10 @@ fun BottomBar(navController: NavHostController) {
 }
 
 data class DrawerItem(val title: String, val route: String, val isPlaceholder: Boolean, val icon: ImageVector = Icons.Default.Home)
-data class BottomNavItem(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val route: String, val isPlaceholder: Boolean)
+data class BottomNavItem(
+    val title: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val tileRes: Int?,
+    val route: String,
+    val isPlaceholder: Boolean
+)
