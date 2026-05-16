@@ -116,6 +116,25 @@ private val OlegSmileLightColorScheme = lightColorScheme(
     onError = Color(0xFFFFFFFF)
 )
 
+private val OlegSmilePremiumColorScheme = lightColorScheme(
+    primary = OlegPremiumGold,
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = OlegPremiumPrimaryContainer,
+    onPrimaryContainer = OlegPremiumOnPrimaryContainer,
+    secondary = OlegGold,
+    onSecondary = Color(0xFFFFFFFF),
+    tertiary = OlegPremiumTitleCoral,
+    onTertiary = Color(0xFFFFFFFF),
+    background = OlegPremiumBackground,
+    onBackground = OlegPremiumOnSurface,
+    surface = OlegPremiumSurface,
+    onSurface = OlegPremiumOnSurface,
+    surfaceVariant = OlegPremiumSurfaceVariant,
+    onSurfaceVariant = OlegPremiumOnSurfaceVariant,
+    error = IOSRed,
+    onError = Color(0xFFFFFFFF)
+)
+
 private val OceanGlassColorScheme = darkColorScheme(
     primary = OceanMint,
     onPrimary = Color(0xFF062017),
@@ -153,6 +172,7 @@ fun NumisProERPTheme(
         AppTheme.OLEG_SMILE -> OlegSmileColorScheme
         AppTheme.OLEG_SMILE_V2 -> OlegSmileV2ColorScheme
         AppTheme.OLEG_SMILE_LIGHT -> OlegSmileLightColorScheme
+        AppTheme.OLEG_SMILE_PREMIUM -> OlegSmilePremiumColorScheme
         AppTheme.OCEAN_GLASS -> OceanGlassColorScheme
         AppTheme.DEFAULT -> if (darkTheme) DarkColorScheme else LightColorScheme
     }
@@ -205,6 +225,15 @@ fun NumisProERPTheme(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(OlegLightBackground)
+                    ) {
+                        content()
+                    }
+                }
+                AppTheme.OLEG_SMILE_PREMIUM -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(OlegPremiumBackground)
                     ) {
                         content()
                     }

@@ -21,6 +21,7 @@ enum class AppTheme {
     OLEG_SMILE,
     OLEG_SMILE_V2,
     OLEG_SMILE_LIGHT,
+    OLEG_SMILE_PREMIUM,
     OCEAN_GLASS;
 
     companion object {
@@ -28,6 +29,7 @@ enum class AppTheme {
             OLEG_SMILE.name -> OLEG_SMILE
             OLEG_SMILE_V2.name -> OLEG_SMILE_V2
             OLEG_SMILE_LIGHT.name -> OLEG_SMILE_LIGHT
+            OLEG_SMILE_PREMIUM.name -> OLEG_SMILE_PREMIUM
             OCEAN_GLASS.name -> OCEAN_GLASS
             else -> DEFAULT
         }

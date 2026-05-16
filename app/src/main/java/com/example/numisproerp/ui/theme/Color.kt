@@ -106,6 +106,21 @@ val OlegLightOnSurfaceVariant = Color(0xFF6B6B6B)
 val OlegLightGold = Color(0xFFB89230)
 
 // =============================================================================
+// OlegSmile Premium: світла "чистий-білий" преміум-тема з тонким кремовим
+// фоном. Великі білі картки з тінню, золотий акцент (як в OlegSmile Light),
+// а у "Швидкому доступі" — 3D-емодзі плитки (ті ж самі, що в Light).
+// =============================================================================
+val OlegPremiumBackground = Color(0xFFF7F5F0)        // ледь кремовий фон
+val OlegPremiumSurface = Color(0xFFFFFFFF)            // чисто-білі картки
+val OlegPremiumSurfaceVariant = Color(0xFFEFEDE7)
+val OlegPremiumPrimaryContainer = Color(0xFFFFFFFF)
+val OlegPremiumOnPrimaryContainer = Color(0xFF1A1A1A)
+val OlegPremiumOnSurface = Color(0xFF1A1A1A)
+val OlegPremiumOnSurfaceVariant = Color(0xFF6B6B6B)
+val OlegPremiumGold = Color(0xFFB89230)
+val OlegPremiumTitleCoral = Color(0xFFE07A57)         // "NumisPro" акцент-коралик з фото
+
+// =============================================================================
 // OceanGlass: глибокий темно-синій фон, бірюзовий рамки-сяйва, м'ятний
 // акцент для сум і прибутку, прозорі frosted-glass картки.
 // =============================================================================

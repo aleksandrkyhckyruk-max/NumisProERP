@@ -545,6 +545,7 @@ private fun ThemeDialog(current: AppTheme, onSelect: (AppTheme) -> Unit, onDismi
                 ThemeOptionRow("OlegSmile", selected = current == AppTheme.OLEG_SMILE, emblem = R.drawable.oleg_smile_emblem) { onSelect(AppTheme.OLEG_SMILE) }
                 ThemeOptionRow("OlegSmile v2", selected = current == AppTheme.OLEG_SMILE_V2, emblem = R.drawable.oleg_smile_emblem) { onSelect(AppTheme.OLEG_SMILE_V2) }
                 ThemeOptionRow("OlegSmile Light", selected = current == AppTheme.OLEG_SMILE_LIGHT, emblem = R.drawable.oleg_smile_emblem) { onSelect(AppTheme.OLEG_SMILE_LIGHT) }
+                ThemeOptionRow("OlegSmile Premium", selected = current == AppTheme.OLEG_SMILE_PREMIUM, emblem = R.drawable.oleg_smile_emblem) { onSelect(AppTheme.OLEG_SMILE_PREMIUM) }
                 ThemeOptionRow("OceanGlass", selected = current == AppTheme.OCEAN_GLASS) { onSelect(AppTheme.OCEAN_GLASS) }
             }
         },
