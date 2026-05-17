@@ -2,6 +2,16 @@ package com.numisproerp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+/**
+ * Перетворює hex-рядок без `#` (наприклад, "FFD700") у [Color].
+ * Повертає `null` для порожнього/некоректного значення — викликача очікують
+ * fallback на стандартний колір теми.
+ */
+fun parseHexColorOrNull(hex: String): Color? {
+    if (hex.isBlank()) return null
+    return runCatching { Color(android.graphics.Color.parseColor("#$hex")) }.getOrNull()
+}
+
 // iOS-стиль: світла тема (system grouped background)
 val LightBackground = Color(0xFFF2F2F7)
 val LightSurface = Color(0xFFFFFFFF)

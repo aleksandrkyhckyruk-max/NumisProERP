@@ -62,9 +62,16 @@ import com.numisproerp.ui.theme.AccentYellow
 import com.numisproerp.ui.theme.IOSDesign
 import com.numisproerp.ui.theme.IOSIconChip
 import com.numisproerp.ui.theme.LocalAppTheme
+import com.numisproerp.ui.theme.LocalEmblemImagePath
+import com.numisproerp.ui.theme.LocalEmblemSize
+import com.numisproerp.ui.theme.LocalInfoCardBackgroundAlpha
+import com.numisproerp.ui.theme.LocalInfoCardBackgroundColor
 import com.numisproerp.ui.theme.LocalTileBackgroundAlpha
+import com.numisproerp.ui.theme.LocalTileBackgroundColor
+import com.numisproerp.ui.theme.LocalTileIconSize
 import com.numisproerp.ui.theme.LocalUserTilePhotos
 import com.numisproerp.ui.theme.OlegPremiumTitleCoral
+import com.numisproerp.ui.theme.parseHexColorOrNull
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.layout.ContentScale
@@ -209,22 +216,29 @@ fun DashboardContent(
 @Composable
 private fun DashboardHeader(currentDate: String) {
     val theme = LocalAppTheme.current
+    val customEmblemPath = LocalEmblemImagePath.current
+    val emblemSizeDp = LocalEmblemSize.current.dp
     if (theme == AppTheme.OLEG_SMILE_PREMIUM) {
         PremiumDashboardHeader(currentDate = currentDate)
         return
     }
-    if (theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 || theme == AppTheme.OLEG_SMILE_LIGHT) {
-        val titleText = if (theme == AppTheme.OLEG_SMILE_LIGHT) "OlegSmile Light" else "OlegSmile"
+    if (customEmblemPath.isNotBlank() ||
+        theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 || theme == AppTheme.OLEG_SMILE_LIGHT
+    ) {
+        val titleText = when {
+            theme == AppTheme.OLEG_SMILE_LIGHT -> "OlegSmile Light"
+            theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 -> "OlegSmile"
+            else -> "NumisProERP"
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.oleg_smile_emblem),
+            EmblemImage(
+                customPath = customEmblemPath,
+                defaultRes = R.drawable.oleg_smile_emblem,
                 contentDescription = titleText,
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(36.dp))
+                size = emblemSizeDp
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
@@ -267,6 +281,43 @@ private fun DashboardHeader(currentDate: String) {
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
+    }
+}
+
+/**
+ * Емблема в шапці головного екрана. Якщо користувач вибрав власне фото
+ * через Налаштування — рендеримо його; інакше — стандартний ресурс теми.
+ * Радіус скруглення = половина розміру (як було жорстко 36dp при 72dp).
+ */
+@Composable
+private fun EmblemImage(
+    customPath: String,
+    defaultRes: Int,
+    contentDescription: String,
+    size: androidx.compose.ui.unit.Dp
+) {
+    val corner = size / 2
+    if (customPath.isNotBlank()) {
+        val context = LocalContext.current
+        val request = androidx.compose.runtime.remember(customPath) {
+            ImageRequest.Builder(context).data(File(customPath)).build()
+        }
+        AsyncImage(
+            model = request,
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .size(size)
+                .clip(RoundedCornerShape(corner)),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Image(
+            painter = painterResource(id = defaultRes),
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .size(size)
+                .clip(RoundedCornerShape(corner))
+        )
     }
 }
 
@@ -321,11 +372,18 @@ fun StatsCardClickable(
     backgroundColor: Color,
     onClick: () -> Unit
 ) {
+    // "Загальний баланс" — велика інформаційна картка зверху Dashboard.
+    // Беремо стандартний колір (primaryContainer) і застосовуємо лише
+    // користувацький альфа-канал, бо повний override втратив би акцент-колір.
+    val infoAlpha = LocalInfoCardBackgroundAlpha.current.coerceIn(0f, 1f)
+    val resolvedColor = parseHexColorOrNull(LocalInfoCardBackgroundColor.current)
+        ?.copy(alpha = infoAlpha)
+        ?: backgroundColor.copy(alpha = infoAlpha)
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        colors = CardDefaults.cardColors(containerColor = resolvedColor),
         shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
         elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
     ) {
@@ -357,10 +415,13 @@ fun MonthlyStatCardClickable(
     iconColor: Color,
     onClick: () -> Unit
 ) {
+    val infoAlpha = LocalInfoCardBackgroundAlpha.current.coerceIn(0f, 1f)
+    val infoBg = parseHexColorOrNull(LocalInfoCardBackgroundColor.current)
+        ?: MaterialTheme.colorScheme.surface
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = infoBg.copy(alpha = infoAlpha)),
         elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
     ) {
         Row(
@@ -534,6 +595,8 @@ fun QuickAccessButton(
     val theme = LocalAppTheme.current
     val userPhotoPath = LocalUserTilePhotos.current[tileId].orEmpty()
     val bgAlpha = LocalTileBackgroundAlpha.current.coerceIn(0f, 1f)
+    val customBgColor = parseHexColorOrNull(LocalTileBackgroundColor.current)
+    val iconSizeDp = LocalTileIconSize.current.dp
     if (theme == AppTheme.OLEG_SMILE_PREMIUM && userPhotoPath.isBlank()) {
         PremiumQuickAccessButton(
             modifier = modifier,
@@ -544,18 +607,20 @@ fun QuickAccessButton(
         )
         return
     }
-    val tileWidth = 82.dp
-    val tileHeight = 104.dp
+    // Розмір контейнера-плитки масштабується разом з іконкою, щоб збільшене
+    // користувацьке фото мало адекватний padding довкола.
+    val tileWidth = (iconSizeDp.value + 14f).dp
+    val tileHeight = (iconSizeDp.value + 36f).dp
     val tileCorner = 18.dp
+    val iconCornerRadius = (iconSizeDp.value * 14f / 68f).dp
+    val baseBgColor = customBgColor ?: MaterialTheme.colorScheme.surface
     Box(
         modifier = modifier
             .clickable { onClick() }
             .padding(2.dp)
             .size(width = tileWidth, height = tileHeight)
             .clip(RoundedCornerShape(tileCorner))
-            .background(
-                MaterialTheme.colorScheme.surface.copy(alpha = bgAlpha)
-            ),
+            .background(baseBgColor.copy(alpha = bgAlpha)),
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
@@ -563,15 +628,15 @@ fun QuickAccessButton(
             modifier = Modifier.padding(top = 6.dp, bottom = 4.dp, start = 4.dp, end = 4.dp)
         ) {
             if (userPhotoPath.isNotBlank()) {
-                UserTilePhoto(path = userPhotoPath, label = label, size = 68.dp, corner = 14.dp)
+                UserTilePhoto(path = userPhotoPath, label = label, size = iconSizeDp, corner = iconCornerRadius)
             } else when (theme) {
                 AppTheme.OLEG_SMILE, AppTheme.OLEG_SMILE_V2 -> {
                     Image(
                         painter = painterResource(id = tileRes),
                         contentDescription = label,
                         modifier = Modifier
-                            .size(68.dp)
-                            .clip(RoundedCornerShape(14.dp))
+                            .size(iconSizeDp)
+                            .clip(RoundedCornerShape(iconCornerRadius))
                     )
                 }
                 AppTheme.OLEG_SMILE_PREMIUM -> {
@@ -579,15 +644,15 @@ fun QuickAccessButton(
                         Image(
                             painter = painterResource(id = premiumTileRes),
                             contentDescription = label,
-                            modifier = Modifier.size(68.dp)
+                            modifier = Modifier.size(iconSizeDp)
                         )
                     } else {
                         IOSIconChip(
                             icon = icon,
                             tint = MaterialTheme.colorScheme.primary,
-                            chipSize = 68.dp,
-                            iconSize = 36.dp,
-                            cornerRadius = 14.dp,
+                            chipSize = iconSizeDp,
+                            iconSize = iconSizeDp * 0.53f,
+                            cornerRadius = iconCornerRadius,
                             backgroundAlpha = 0.12f,
                             contentDescription = label
                         )
@@ -598,16 +663,16 @@ fun QuickAccessButton(
                         Image(
                             painter = painterResource(id = lightTileRes),
                             contentDescription = label,
-                            modifier = Modifier.size(68.dp)
+                            modifier = Modifier.size(iconSizeDp)
                         )
                     } else {
                         val resolvedTint = if (lightTint != Color.Unspecified) lightTint else MaterialTheme.colorScheme.primary
                         IOSIconChip(
                             icon = icon,
                             tint = resolvedTint,
-                            chipSize = 68.dp,
-                            iconSize = 36.dp,
-                            cornerRadius = 14.dp,
+                            chipSize = iconSizeDp,
+                            iconSize = iconSizeDp * 0.53f,
+                            cornerRadius = iconCornerRadius,
                             backgroundAlpha = 0.18f,
                             contentDescription = label
                         )
@@ -617,9 +682,9 @@ fun QuickAccessButton(
                     IOSIconChip(
                         icon = icon,
                         tint = MaterialTheme.colorScheme.primary,
-                        chipSize = 68.dp,
-                        iconSize = 36.dp,
-                        cornerRadius = 14.dp,
+                        chipSize = iconSizeDp,
+                        iconSize = iconSizeDp * 0.53f,
+                        cornerRadius = iconCornerRadius,
                         backgroundAlpha = 0.12f,
                         contentDescription = label
                     )
@@ -721,11 +786,14 @@ fun RecentTransactionItem(transaction: RecentTransaction) {
     val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
     val formattedDate = dateFormat.format(Date(transaction.date))
     val isPurchase = transaction.type == "Покупка"
+    val infoAlpha = LocalInfoCardBackgroundAlpha.current.coerceIn(0f, 1f)
+    val infoBg = parseHexColorOrNull(LocalInfoCardBackgroundColor.current)
+        ?: MaterialTheme.colorScheme.surface
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = infoBg.copy(alpha = infoAlpha)),
         elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
     ) {
         Row(
