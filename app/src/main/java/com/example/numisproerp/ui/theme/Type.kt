@@ -5,17 +5,75 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
+import com.numisproerp.R
+
+/**
+ * Провайдер Google Fonts: завантажує шрифти через Google Play Services
+ * (без необхідності бандлити TTF у застосунок). Сертифікати беруться з
+ * стандартного масиву `com_google_android_gms_fonts_certs`, який поставляється
+ * разом із залежністю `androidx.compose.ui:ui-text-google-fonts`.
+ */
+private val googleFontsProvider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
+)
+
+/**
+ * Будує [FontFamily] для одного шрифту з Google Fonts з типовими вагами.
+ * Завантаження відбувається лінько при першому використанні.
+ */
+private fun gFontFamily(name: String): FontFamily {
+    val gFont = GoogleFont(name)
+    return FontFamily(
+        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Normal),
+        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Medium),
+        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.SemiBold),
+        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Bold)
+    )
+}
+
+/**
+ * Описує один варіант шрифту, який користувач може обрати в Налаштуваннях.
+ * `key` — стабільний ключ для SharedPreferences; `familyName` — рівно як у
+ * каталозі Google Fonts (з пробілами та регістром).
+ */
+data class FontOption(val key: String, val displayName: String, val familyName: String)
+
+/**
+ * Google Fonts, які користувач може обрати, разом із системними сімействами.
+ * Порядок відповідає тому, як вони показуються у [FontsDialog].
+ */
+val GoogleFontOptions: List<FontOption> = listOf(
+    FontOption("roboto", "Roboto", "Roboto"),
+    FontOption("montserrat", "Montserrat", "Montserrat"),
+    FontOption("inter", "Inter", "Inter"),
+    FontOption("lora", "Lora", "Lora"),
+    FontOption("playfair", "Playfair Display", "Playfair Display"),
+    FontOption("poppins", "Poppins", "Poppins"),
+    FontOption("nunito", "Nunito", "Nunito"),
+    FontOption("open-sans", "Open Sans", "Open Sans"),
+)
 
 /**
  * Перетворює ключ шрифту з налаштувань на [FontFamily] для Compose.
- * Підтримуються чотири системні сімейства (system / sans-serif / serif / monospace).
+ * Підтримуються системні сімейства (system / sans-serif / serif / monospace)
+ * та Google Fonts з [GoogleFontOptions].
  */
-fun fontFamilyOf(key: String?): FontFamily = when (key) {
-    "serif" -> FontFamily.Serif
-    "sans-serif" -> FontFamily.SansSerif
-    "monospace" -> FontFamily.Monospace
-    else -> FontFamily.Default
+fun fontFamilyOf(key: String?): FontFamily {
+    return when (key) {
+        "serif" -> FontFamily.Serif
+        "sans-serif" -> FontFamily.SansSerif
+        "monospace" -> FontFamily.Monospace
+        null, "", "system" -> FontFamily.Default
+        else -> {
+            val option = GoogleFontOptions.firstOrNull { it.key == key }
+            if (option != null) gFontFamily(option.familyName) else FontFamily.Default
+        }
+    }
 }
 
 /**

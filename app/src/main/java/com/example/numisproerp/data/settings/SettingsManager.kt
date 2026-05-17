@@ -362,12 +362,15 @@ class SettingsManager @Inject constructor(
         // у [DashboardScreen.QuickAccessButton], щоб старі користувачі не побачили
         // зміни в зовнішньому вигляді одразу після оновлення.
         const val DEFAULT_TILE_BG_ALPHA = 0.55f
-        // Стандартне значення збігається з попереднім `Modifier.size(68.dp)` у
-        // [DashboardScreen.QuickAccessButton], щоб користувачі без налаштування
-        // бачили попередній вигляд.
-        const val DEFAULT_TILE_ICON_SIZE = 68
+        // Стандартне значення = `TILE_BOX_SIZE_DP` - 4dp (іконка майже впритул до
+        // фону, з невеликим відступом для рамки). Користувач може зменшити іконку
+        // повзунком, або зробити її більшою за фон (вона перекриє рамку).
+        const val DEFAULT_TILE_ICON_SIZE = 76
         const val MIN_TILE_ICON_SIZE = 40
         const val MAX_TILE_ICON_SIZE = 120
+        // Розмір фонового квадрата плитки швидкого доступу. Фіксований, не залежить
+        // від повзунка розміру іконки — лише іконка/фото масштабується.
+        const val TILE_BOX_SIZE_DP = 80
         // Стандарт збігається з попереднім жорстким 72dp у `DashboardHeader`.
         const val DEFAULT_EMBLEM_SIZE = 72
         const val MIN_EMBLEM_SIZE = 40

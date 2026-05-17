@@ -607,17 +607,20 @@ fun QuickAccessButton(
         )
         return
     }
-    // Фоновий квадрат-чип ледь більший за саму іконку (відступ 6dp з усіх сторін),
-    // щоб користувач бачив рамку довкола. Підпис рендеримо ОКРЕМО, нижче квадрата.
-    val iconPadding = 6.dp
-    val tileBoxSize = (iconSizeDp.value + iconPadding.value * 2f).dp
+    // Фоновий заокруглений квадрат завжди МАЄ ФІКСОВАНИЙ розмір (80dp). Повзунок
+    // розміру іконки масштабує лише саму іконку/фото всередині — рамка довкола
+    // не змінюється. За замовчуванням іконка = 76dp (фон мінус 4dp = майже впритул).
+    // Якщо користувач збільшить іконку понад 80dp — вона візуально перекриє фон,
+    // але "рамка" (Box) залишається ним самим.
+    val tileBoxSize = com.numisproerp.data.settings.SettingsManager.TILE_BOX_SIZE_DP.dp
     val tileCorner = 18.dp
-    // Іконка має ледь меншу заокругленість за зовнішній квадрат, щоб фон проглядався.
-    val iconCornerRadius = (iconSizeDp.value * 12f / 68f).dp
+    // Заокругленість іконки/фото масштабується пропорційно її розміру, відносно
+    // дефолтних 76dp: при більшій іконці — більший radius, при меншій — менший.
+    val iconCornerRadius = (iconSizeDp.value * 14f / 76f).dp
     val baseBgColor = customBgColor ?: MaterialTheme.colorScheme.surface
-    // Колонка трохи ширша за плитку — щоб підпис у 2 рядки не обрізався при малих
-    // розмірах іконки.
-    val columnWidth = maxOf(tileBoxSize.value, 72f).dp
+    // Колонка має вміщати як фон (80dp), так і потенційно більшу іконку (до 120dp),
+    // плюс 4dp для повітря довкола. Підпис рендериться ОКРЕМО нижче.
+    val columnWidth = maxOf(tileBoxSize.value, iconSizeDp.value).dp + 4.dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
@@ -625,13 +628,21 @@ fun QuickAccessButton(
             .padding(2.dp)
             .width(columnWidth)
     ) {
+        // Контейнер висотою з найбільший елемент: завжди вміщає і фон, і іконку,
+        // навіть якщо вона ширша за фон. Box сам по собі НЕ клiпує дітей.
         Box(
             modifier = Modifier
-                .size(tileBoxSize)
-                .clip(RoundedCornerShape(tileCorner))
-                .background(baseBgColor.copy(alpha = bgAlpha)),
+                .size(maxOf(tileBoxSize.value, iconSizeDp.value).dp),
             contentAlignment = Alignment.Center
         ) {
+            // ФОН: завжди фіксований 80dp.
+            Box(
+                modifier = Modifier
+                    .size(tileBoxSize)
+                    .clip(RoundedCornerShape(tileCorner))
+                    .background(baseBgColor.copy(alpha = bgAlpha))
+            )
+            // ІКОНКА: розмір з повзунка, центрована поверх фону.
             if (userPhotoPath.isNotBlank()) {
                 UserTilePhoto(path = userPhotoPath, label = label, size = iconSizeDp, corner = iconCornerRadius)
             } else when (theme) {
@@ -652,14 +663,14 @@ fun QuickAccessButton(
                             modifier = Modifier.size(iconSizeDp)
                         )
                     } else {
-                        IOSIconChip(
-                            icon = icon,
-                            tint = MaterialTheme.colorScheme.primary,
-                            chipSize = iconSizeDp,
-                            iconSize = iconSizeDp * 0.53f,
-                            cornerRadius = iconCornerRadius,
-                            backgroundAlpha = 0.12f,
-                            contentDescription = label
+                        // У преміум-темі без 3D-арту показуємо саму іконку (без додаткового
+                        // чіпа всередині — фон зовнішнього квадрата вже виконує цю роль),
+                        // щоб іконка займала майже весь розмір повзунка.
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            modifier = Modifier.size(iconSizeDp * 0.85f),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -672,26 +683,20 @@ fun QuickAccessButton(
                         )
                     } else {
                         val resolvedTint = if (lightTint != Color.Unspecified) lightTint else MaterialTheme.colorScheme.primary
-                        IOSIconChip(
-                            icon = icon,
-                            tint = resolvedTint,
-                            chipSize = iconSizeDp,
-                            iconSize = iconSizeDp * 0.53f,
-                            cornerRadius = iconCornerRadius,
-                            backgroundAlpha = 0.18f,
-                            contentDescription = label
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            modifier = Modifier.size(iconSizeDp * 0.85f),
+                            tint = resolvedTint
                         )
                     }
                 }
                 else -> {
-                    IOSIconChip(
-                        icon = icon,
-                        tint = MaterialTheme.colorScheme.primary,
-                        chipSize = iconSizeDp,
-                        iconSize = iconSizeDp * 0.53f,
-                        cornerRadius = iconCornerRadius,
-                        backgroundAlpha = 0.12f,
-                        contentDescription = label
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        modifier = Modifier.size(iconSizeDp * 0.85f),
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }

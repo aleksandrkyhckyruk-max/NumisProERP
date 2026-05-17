@@ -355,7 +355,7 @@ fun BottomBar(navController: NavHostController) {
         // розташована між "Каталог" і "Склад".
         BottomNavItem(tr("Моя збірка", "My Bundle"), Icons.Default.Build, Screen.MyBundle.route, false),
         BottomNavItem(tr("Склад", "Stock"), Icons.Default.Store, Screen.Stock.route, false),
-        BottomNavItem(tr("Налаштування", "Settings"), Icons.Default.Settings, Screen.Settings.route, false)
+        BottomNavItem(tr("Налашт.", "Settings"), Icons.Default.Settings, Screen.Settings.route, false)
     )
     val inDevSuffix = tr(" в розробці", " in development")
 
