@@ -607,25 +607,30 @@ fun QuickAccessButton(
         )
         return
     }
-    // Розмір контейнера-плитки масштабується разом з іконкою, щоб збільшене
-    // користувацьке фото мало адекватний padding довкола.
-    val tileWidth = (iconSizeDp.value + 14f).dp
-    val tileHeight = (iconSizeDp.value + 36f).dp
+    // Фоновий квадрат-чип ледь більший за саму іконку (відступ 6dp з усіх сторін),
+    // щоб користувач бачив рамку довкола. Підпис рендеримо ОКРЕМО, нижче квадрата.
+    val iconPadding = 6.dp
+    val tileBoxSize = (iconSizeDp.value + iconPadding.value * 2f).dp
     val tileCorner = 18.dp
-    val iconCornerRadius = (iconSizeDp.value * 14f / 68f).dp
+    // Іконка має ледь меншу заокругленість за зовнішній квадрат, щоб фон проглядався.
+    val iconCornerRadius = (iconSizeDp.value * 12f / 68f).dp
     val baseBgColor = customBgColor ?: MaterialTheme.colorScheme.surface
-    Box(
+    // Колонка трохи ширша за плитку — щоб підпис у 2 рядки не обрізався при малих
+    // розмірах іконки.
+    val columnWidth = maxOf(tileBoxSize.value, 72f).dp
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clickable { onClick() }
             .padding(2.dp)
-            .size(width = tileWidth, height = tileHeight)
-            .clip(RoundedCornerShape(tileCorner))
-            .background(baseBgColor.copy(alpha = bgAlpha)),
-        contentAlignment = Alignment.TopCenter
+            .width(columnWidth)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 6.dp, bottom = 4.dp, start = 4.dp, end = 4.dp)
+        Box(
+            modifier = Modifier
+                .size(tileBoxSize)
+                .clip(RoundedCornerShape(tileCorner))
+                .background(baseBgColor.copy(alpha = bgAlpha)),
+            contentAlignment = Alignment.Center
         ) {
             if (userPhotoPath.isNotBlank()) {
                 UserTilePhoto(path = userPhotoPath, label = label, size = iconSizeDp, corner = iconCornerRadius)
@@ -690,16 +695,16 @@ fun QuickAccessButton(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = label,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                maxLines = 2,
-                lineHeight = 12.sp
-            )
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 2,
+            lineHeight = 13.sp
+        )
     }
 }
 
