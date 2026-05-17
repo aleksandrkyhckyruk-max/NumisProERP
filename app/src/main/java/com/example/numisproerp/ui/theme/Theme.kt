@@ -179,6 +179,12 @@ fun NumisProERPTheme(
     backgroundImagePath: String = "",
     tilePhotoPaths: Map<String, String> = emptyMap(),
     tileBackgroundAlpha: Float = SettingsManager.DEFAULT_TILE_BG_ALPHA,
+    tileIconSize: Int = SettingsManager.DEFAULT_TILE_ICON_SIZE,
+    tileBackgroundColorHex: String = "",
+    emblemImagePath: String = "",
+    emblemSize: Int = SettingsManager.DEFAULT_EMBLEM_SIZE,
+    infoCardBackgroundColorHex: String = "",
+    infoCardBackgroundAlpha: Float = SettingsManager.DEFAULT_INFO_CARD_BG_ALPHA,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
@@ -224,7 +230,13 @@ fun NumisProERPTheme(
         LocalAppTheme provides appTheme,
         LocalDensity provides scaledDensity,
         LocalUserTilePhotos provides tilePhotoPaths,
-        LocalTileBackgroundAlpha provides tileBackgroundAlpha
+        LocalTileBackgroundAlpha provides tileBackgroundAlpha,
+        LocalTileIconSize provides tileIconSize,
+        LocalTileBackgroundColor provides tileBackgroundColorHex,
+        LocalEmblemImagePath provides emblemImagePath,
+        LocalEmblemSize provides emblemSize,
+        LocalInfoCardBackgroundColor provides infoCardBackgroundColorHex,
+        LocalInfoCardBackgroundAlpha provides infoCardBackgroundAlpha
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

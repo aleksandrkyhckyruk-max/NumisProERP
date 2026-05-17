@@ -132,6 +132,12 @@ class MainActivity : ComponentActivity() {
             val backgroundImagePath by settingsManager.backgroundImagePathState
             val tilePhotoPaths by settingsManager.tilePhotoPathsState
             val tileBackgroundAlpha by settingsManager.tileBackgroundAlphaState
+            val tileIconSize by settingsManager.tileIconSizeState
+            val tileBackgroundColor by settingsManager.tileBackgroundColorState
+            val emblemImagePath by settingsManager.emblemImagePathState
+            val emblemSize by settingsManager.emblemSizeState
+            val infoCardBackgroundColor by settingsManager.infoCardBackgroundColorState
+            val infoCardBackgroundAlpha by settingsManager.infoCardBackgroundAlphaState
             var splashFinished by rememberSaveable { mutableStateOf(false) }
             NumisProERPTheme(
                 appTheme = theme,
@@ -140,7 +146,13 @@ class MainActivity : ComponentActivity() {
                 fontColorHex = fontColor,
                 backgroundImagePath = backgroundImagePath,
                 tilePhotoPaths = tilePhotoPaths,
-                tileBackgroundAlpha = tileBackgroundAlpha
+                tileBackgroundAlpha = tileBackgroundAlpha,
+                tileIconSize = tileIconSize,
+                tileBackgroundColorHex = tileBackgroundColor,
+                emblemImagePath = emblemImagePath,
+                emblemSize = emblemSize,
+                infoCardBackgroundColorHex = infoCardBackgroundColor,
+                infoCardBackgroundAlpha = infoCardBackgroundAlpha
             ) {
                 CompositionLocalProvider(LocalAppLanguage provides language) {
                     Surface(

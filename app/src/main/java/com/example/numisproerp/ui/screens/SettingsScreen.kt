@@ -5,7 +5,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -125,6 +127,8 @@ fun SettingsScreen(
     var showFontsDialog by remember { mutableStateOf(false) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
     var showTileIconsDialog by remember { mutableStateOf(false) }
+    var showEmblemDialog by remember { mutableStateOf(false) }
+    var showInfoCardsDialog by remember { mutableStateOf(false) }
     // Поточна плитка, для якої запускається picker (`tileId`). Зберігаємо тут,
     // щоб після повернення з image-picker зрозуміти, куди писати файл.
     var pickerTileId by remember { mutableStateOf("") }
@@ -273,6 +277,32 @@ fun SettingsScreen(
         }
     }
 
+    // Picker для емблеми головного екрана. Зберігаємо як `emblem.jpg`.
+    val emblemSetText = tr("Емблему встановлено", "Emblem set")
+    val emblemPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                val target = File(context.filesDir, "emblem.jpg")
+                try {
+                    val stream = context.contentResolver.openInputStream(uri)
+                    if (stream != null) {
+                        stream.use { input ->
+                            FileOutputStream(target).use { output -> input.copyTo(output) }
+                        }
+                        settings.emblemImagePath = target.absolutePath
+                        Toast.makeText(context, emblemSetText, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, bgErrorText, Toast.LENGTH_SHORT).show()
+                    }
+                } catch (_: Exception) {
+                    Toast.makeText(context, bgErrorText, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -352,14 +382,43 @@ fun SettingsScreen(
             item {
                 val customPhotosCount = settings.tilePhotoPathsState.value.size
                 val alphaPct = (settings.tileBackgroundAlphaState.value * 100).toInt()
+                val iconSize = settings.tileIconSizeState.value
                 SettingsButton(
                     icon = Icons.Default.Apps,
                     title = tr("Значки головного меню", "Main menu icons"),
                     subtitle = tr(
-                        "Фото: $customPhotosCount/8 · Прозорість: $alphaPct%",
-                        "Photos: $customPhotosCount/8 · Opacity: $alphaPct%"
+                        "Фото: $customPhotosCount/8 · Розмір: ${iconSize}dp · Прозорість: $alphaPct%",
+                        "Photos: $customPhotosCount/8 · Size: ${iconSize}dp · Opacity: $alphaPct%"
                     ),
                     onClick = { showTileIconsDialog = true }
+                )
+            }
+            item {
+                val emblemSet = settings.emblemImagePathState.value.isNotBlank()
+                val emblemSize = settings.emblemSizeState.value
+                SettingsButton(
+                    icon = Icons.Default.Brush,
+                    title = tr("Емблема головного екрана", "Header emblem"),
+                    subtitle = if (emblemSet)
+                        tr("Користувацька · Розмір: ${emblemSize}dp", "Custom · Size: ${emblemSize}dp")
+                    else
+                        tr("Стандартна · Розмір: ${emblemSize}dp", "Default · Size: ${emblemSize}dp"),
+                    onClick = { showEmblemDialog = true }
+                )
+            }
+            item {
+                val infoAlphaPct = (settings.infoCardBackgroundAlphaState.value * 100).toInt()
+                val infoColorSet = settings.infoCardBackgroundColorState.value.isNotBlank()
+                SettingsButton(
+                    icon = Icons.Default.ColorLens,
+                    title = tr("Інформаційні картки", "Information cards"),
+                    subtitle = if (infoColorSet)
+                        tr("Колір фону встановлено · Прозорість: $infoAlphaPct%",
+                           "Background color set · Opacity: $infoAlphaPct%")
+                    else
+                        tr("Стандартний фон · Прозорість: $infoAlphaPct%",
+                           "Default background · Opacity: $infoAlphaPct%"),
+                    onClick = { showInfoCardsDialog = true }
                 )
             }
 
@@ -517,6 +576,22 @@ fun SettingsScreen(
             },
             onRemovePhoto = { tileId -> settings.setTilePhotoPath(tileId, "") },
             onDismiss = { showTileIconsDialog = false }
+        )
+    }
+
+    if (showEmblemDialog) {
+        EmblemDialog(
+            settings = settings,
+            onPickImage = { emblemPickerLauncher.launch("image/*") },
+            onRemove = { settings.emblemImagePath = "" },
+            onDismiss = { showEmblemDialog = false }
+        )
+    }
+
+    if (showInfoCardsDialog) {
+        InfoCardsDialog(
+            settings = settings,
+            onDismiss = { showInfoCardsDialog = false }
         )
     }
 
@@ -822,6 +897,8 @@ private fun TileIconsDialog(
 ) {
     val photos by settings.tilePhotoPathsState
     var alpha by settings.tileBackgroundAlphaState
+    var iconSize by settings.tileIconSizeState
+    var bgColor by settings.tileBackgroundColorState
 
     // Назви + accent кольори для відображення в діалозі. Mapping tileId -> (Ua, En, accent).
     data class TileLabel(val id: String, val ua: String, val en: String)
@@ -846,6 +923,27 @@ private fun TileIconsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Розмір значка (масштаб для збільшення власних фото).
+                Text(
+                    tr("Розмір значка: ${iconSize}dp", "Icon size: ${iconSize}dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = iconSize.toFloat(),
+                    onValueChange = { settings.tileIconSize = it.toInt() },
+                    valueRange = SettingsManager.MIN_TILE_ICON_SIZE.toFloat()
+                            ..SettingsManager.MAX_TILE_ICON_SIZE.toFloat(),
+                    steps = (SettingsManager.MAX_TILE_ICON_SIZE - SettingsManager.MIN_TILE_ICON_SIZE) / 4 - 1
+                )
+                Text(
+                    tr(
+                        "Стандарт — 68dp. Збільшіть, щоб ваші фото на плитках виглядали більшими.",
+                        "Default — 68dp. Increase if your tile photos look too small."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
                 // Глобальний повзунок прозорості фону плитки.
                 val alphaPct = (alpha * 100).toInt()
                 Text(
@@ -863,6 +961,17 @@ private fun TileIconsDialog(
                         "0% — fully transparent background, 100% — like system icons."
                     ),
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+                // Колір фону плиток.
+                Text(
+                    tr("Колір фону значків", "Tile background color"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                ColorPickerRow(
+                    currentHex = bgColor,
+                    onSelect = { settings.tileBackgroundColor = it }
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -950,4 +1059,196 @@ private fun BackgroundImageDialog(currentPath: String, onPickImage: () -> Unit, 
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Закрити", "Close")) } }
     )
+}
+
+// ======================== Emblem dialog ========================
+
+/**
+ * Діалог керування емблемою, що показується у шапці головного екрана
+ * над інформаційними картками. Дозволяє підмінити стандартну емблему
+ * власним фото та задати її розмір.
+ */
+@Composable
+private fun EmblemDialog(
+    settings: SettingsManager,
+    onPickImage: () -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val emblemPath by settings.emblemImagePathState
+    var emblemSize by settings.emblemSizeState
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Емблема головного екрана", "Header emblem")) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    if (emblemPath.isNotBlank())
+                        tr("Поточна: користувацька", "Current: custom")
+                    else
+                        tr("Поточна: стандартна", "Current: default"),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+
+                Button(
+                    onClick = { onPickImage(); onDismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Image, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(tr("Вибрати зображення…", "Choose image…"))
+                }
+                if (emblemPath.isNotBlank()) {
+                    OutlinedButton(
+                        onClick = { onRemove() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(tr("Скинути до стандартної", "Reset to default"))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    tr("Розмір емблеми: ${emblemSize}dp", "Emblem size: ${emblemSize}dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = emblemSize.toFloat(),
+                    onValueChange = { settings.emblemSize = it.toInt() },
+                    valueRange = SettingsManager.MIN_EMBLEM_SIZE.toFloat()
+                            ..SettingsManager.MAX_EMBLEM_SIZE.toFloat(),
+                    steps = (SettingsManager.MAX_EMBLEM_SIZE - SettingsManager.MIN_EMBLEM_SIZE) / 4 - 1
+                )
+                Text(
+                    tr(
+                        "Стандарт — 72dp. Емблема відображається круглою у шапці.",
+                        "Default — 72dp. The emblem appears rounded in the header."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
+    )
+}
+
+// ======================== Info cards dialog ========================
+
+/**
+ * Діалог керування фоновим виглядом інформаційних карток на головному екрані
+ * (баланс, місячні стати, останні операції): колір фону + прозорість.
+ */
+@Composable
+private fun InfoCardsDialog(
+    settings: SettingsManager,
+    onDismiss: () -> Unit
+) {
+    var bgColor by settings.infoCardBackgroundColorState
+    var alpha by settings.infoCardBackgroundAlphaState
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Інформаційні картки", "Information cards")) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    tr("Колір фону карток", "Card background color"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                ColorPickerRow(
+                    currentHex = bgColor,
+                    onSelect = { settings.infoCardBackgroundColor = it }
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                val alphaPct = (alpha * 100).toInt()
+                Text(
+                    tr("Прозорість фону: $alphaPct%", "Background opacity: $alphaPct%"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = alpha,
+                    onValueChange = { settings.infoCardBackgroundAlpha = it },
+                    valueRange = 0f..1f
+                )
+                Text(
+                    tr(
+                        "0% — повністю прозорий фон карток, 100% — суцільний колір.",
+                        "0% — fully transparent card background, 100% — solid color."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
+    )
+}
+
+// ======================== Color picker row ========================
+
+/**
+ * Горизонтальний рядок з палітрою стандартних кольорів + опцією "за замовчуванням".
+ * Кожен колір зберігається як hex-рядок без `#`, порожній рядок = використати
+ * стандартний колір теми у викликачів.
+ */
+@Composable
+private fun ColorPickerRow(currentHex: String, onSelect: (String) -> Unit) {
+    // Палітра кольорів для фону (узгоджена з палітрою кольорів шрифтів).
+    val swatches = remember {
+        listOf(
+            "" to "default",
+            "FFFFFF" to "white",
+            "000000" to "black",
+            "FFD700" to "gold",
+            "F5E6C8" to "cream",
+            "FFA500" to "orange",
+            "FF3B30" to "red",
+            "FF2D55" to "pink",
+            "AF52DE" to "purple",
+            "5856D6" to "indigo",
+            "007AFF" to "blue",
+            "34C759" to "green",
+            "8E8E93" to "gray"
+        )
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        swatches.forEach { (hex, _) ->
+            val selected = currentHex.equals(hex, ignoreCase = true)
+            val border = if (selected) 3.dp else 1.dp
+            val borderColor = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (hex.isBlank()) MaterialTheme.colorScheme.surface
+                        else Color(android.graphics.Color.parseColor("#$hex"))
+                    )
+                    .border(border, borderColor, CircleShape)
+                    .clickable { onSelect(hex) },
+                contentAlignment = Alignment.Center
+            ) {
+                if (hex.isBlank()) {
+                    Text("∅", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
+            }
+        }
+    }
 }

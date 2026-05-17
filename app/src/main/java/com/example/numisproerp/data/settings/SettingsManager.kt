@@ -237,6 +237,102 @@ class SettingsManager @Inject constructor(
             prefs.edit().putFloat(KEY_TILE_BG_ALPHA, clamped).apply()
         }
 
+    /**
+     * Розмір значка плитки (іконки/фото) у dp. Дозволяє користувачу збільшити
+     * власне фото на плитці швидкого доступу, якщо стандартне 68dp здається замалим.
+     */
+    private val _tileIconSize: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_TILE_ICON_SIZE, DEFAULT_TILE_ICON_SIZE))
+
+    val tileIconSizeState: MutableState<Int>
+        get() = _tileIconSize
+
+    var tileIconSize: Int
+        get() = _tileIconSize.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_TILE_ICON_SIZE, MAX_TILE_ICON_SIZE)
+            _tileIconSize.value = clamped
+            prefs.edit().putInt(KEY_TILE_ICON_SIZE, clamped).apply()
+        }
+
+    /**
+     * Колір фону плитки швидкого доступу (hex, без `#`). Порожній рядок — використовувати
+     * `colorScheme.surface` (як раніше). Прозорість керується окремо [tileBackgroundAlpha].
+     */
+    private val _tileBackgroundColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_TILE_BG_COLOR, "") ?: "")
+
+    val tileBackgroundColorState: MutableState<String>
+        get() = _tileBackgroundColor
+
+    var tileBackgroundColor: String
+        get() = _tileBackgroundColor.value
+        set(value) {
+            _tileBackgroundColor.value = value
+            prefs.edit().putString(KEY_TILE_BG_COLOR, value).apply()
+        }
+
+    // ==================== ЕМБЛЕМА НАД ІНФО-ЕКРАНАМИ ====================
+    // Користувач може замінити стандартну емблему OlegSmile, що показується
+    // на головному екрані ("Dashboard") та задати її розмір.
+
+    private val _emblemImagePath: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_EMBLEM_IMAGE_PATH, "") ?: "")
+
+    val emblemImagePathState: MutableState<String>
+        get() = _emblemImagePath
+
+    var emblemImagePath: String
+        get() = _emblemImagePath.value
+        set(value) {
+            _emblemImagePath.value = value
+            prefs.edit().putString(KEY_EMBLEM_IMAGE_PATH, value).apply()
+        }
+
+    private val _emblemSize: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_EMBLEM_SIZE, DEFAULT_EMBLEM_SIZE))
+
+    val emblemSizeState: MutableState<Int>
+        get() = _emblemSize
+
+    var emblemSize: Int
+        get() = _emblemSize.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_EMBLEM_SIZE, MAX_EMBLEM_SIZE)
+            _emblemSize.value = clamped
+            prefs.edit().putInt(KEY_EMBLEM_SIZE, clamped).apply()
+        }
+
+    // ==================== ІНФОРМАЦІЙНІ КАРТКИ НА DASHBOARD ====================
+    // Колір фону + прозорість для карток зведення (баланс, місячні стати, останні операції).
+
+    private val _infoCardBackgroundColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_INFO_CARD_BG_COLOR, "") ?: "")
+
+    val infoCardBackgroundColorState: MutableState<String>
+        get() = _infoCardBackgroundColor
+
+    var infoCardBackgroundColor: String
+        get() = _infoCardBackgroundColor.value
+        set(value) {
+            _infoCardBackgroundColor.value = value
+            prefs.edit().putString(KEY_INFO_CARD_BG_COLOR, value).apply()
+        }
+
+    private val _infoCardBackgroundAlpha: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_INFO_CARD_BG_ALPHA, DEFAULT_INFO_CARD_BG_ALPHA))
+
+    val infoCardBackgroundAlphaState: MutableState<Float>
+        get() = _infoCardBackgroundAlpha
+
+    var infoCardBackgroundAlpha: Float
+        get() = _infoCardBackgroundAlpha.value
+        set(value) {
+            val clamped = value.coerceIn(0f, 1f)
+            _infoCardBackgroundAlpha.value = clamped
+            prefs.edit().putFloat(KEY_INFO_CARD_BG_ALPHA, clamped).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "numispro_settings"
         private const val KEY_THEME = "app_theme"
@@ -250,6 +346,12 @@ class SettingsManager @Inject constructor(
         private const val KEY_BG_IMAGE_PATH = "bg_image_path"
         private const val KEY_TILE_PHOTO_PREFIX = "tile_photo_"
         private const val KEY_TILE_BG_ALPHA = "tile_bg_alpha"
+        private const val KEY_TILE_ICON_SIZE = "tile_icon_size"
+        private const val KEY_TILE_BG_COLOR = "tile_bg_color"
+        private const val KEY_EMBLEM_IMAGE_PATH = "emblem_image_path"
+        private const val KEY_EMBLEM_SIZE = "emblem_size"
+        private const val KEY_INFO_CARD_BG_COLOR = "info_card_bg_color"
+        private const val KEY_INFO_CARD_BG_ALPHA = "info_card_bg_alpha"
         const val DEFAULT_LOW_STOCK_THRESHOLD = 3
         const val MAX_LOW_STOCK_THRESHOLD = 20
         const val DEFAULT_FONT_SIZE = 14
@@ -260,6 +362,18 @@ class SettingsManager @Inject constructor(
         // у [DashboardScreen.QuickAccessButton], щоб старі користувачі не побачили
         // зміни в зовнішньому вигляді одразу після оновлення.
         const val DEFAULT_TILE_BG_ALPHA = 0.55f
+        // Стандартне значення збігається з попереднім `Modifier.size(68.dp)` у
+        // [DashboardScreen.QuickAccessButton], щоб користувачі без налаштування
+        // бачили попередній вигляд.
+        const val DEFAULT_TILE_ICON_SIZE = 68
+        const val MIN_TILE_ICON_SIZE = 40
+        const val MAX_TILE_ICON_SIZE = 120
+        // Стандарт збігається з попереднім жорстким 72dp у `DashboardHeader`.
+        const val DEFAULT_EMBLEM_SIZE = 72
+        const val MIN_EMBLEM_SIZE = 40
+        const val MAX_EMBLEM_SIZE = 160
+        // 1.0 = непрозорі картки (старий вигляд).
+        const val DEFAULT_INFO_CARD_BG_ALPHA = 1.0f
         /**
          * Ідентифікатори всіх плиток швидкого доступу головного меню.
          * Збігаються з `tileId`, який передається у [QuickAccessButton].
