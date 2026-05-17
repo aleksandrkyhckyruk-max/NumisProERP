@@ -797,7 +797,20 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
     var fontFamily by settings.fontFamilyState
     var fontColor by settings.fontColorState
 
-    val families = listOf("system", "serif", "sans-serif", "monospace")
+    // Список доступних шрифтів: спершу системні (system / serif / sans-serif / monospace),
+    // далі — Google Fonts з [com.numisproerp.ui.theme.GoogleFontOptions] (Roboto,
+    // Montserrat, Inter, Lora, Playfair Display, Poppins, Nunito, Open Sans).
+    // Системні залишаємо як швидкі/легкі опції без мережі.
+    data class FamilyEntry(val key: String, val display: String)
+    val families: List<FamilyEntry> = buildList {
+        add(FamilyEntry("system", "System"))
+        add(FamilyEntry("sans-serif", "Sans-serif"))
+        add(FamilyEntry("serif", "Serif"))
+        add(FamilyEntry("monospace", "Monospace"))
+        com.numisproerp.ui.theme.GoogleFontOptions.forEach { option ->
+            add(FamilyEntry(option.key, option.displayName))
+        }
+    }
     val colors = listOf(
         "" to tr("За замовчуванням", "Default"),
         "FFFFFF" to tr("Білий", "White"),
@@ -831,22 +844,30 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
                 Spacer(modifier = Modifier.height(4.dp))
                 // Family
                 Text(tr("Тип шрифту", "Font type"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                families.forEach { family ->
+                families.forEach { entry ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { settings.fontFamily = family }.padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { settings.fontFamily = entry.key }.padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(family, modifier = Modifier.weight(1f), fontSize = 14.sp)
+                        // Превʼю шрифту: назва відображається ТИМ САМИМ шрифтом, який
+                        // вибирається — щоб користувач одразу бачив різницю між
+                        // Roboto / Montserrat / Lora тощо.
+                        Text(
+                            text = entry.display,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 15.sp,
+                            fontFamily = com.numisproerp.ui.theme.fontFamilyOf(entry.key)
+                        )
                         RadioButton(
-                            selected = fontFamily == family,
-                            onClick = { settings.fontFamily = family },
+                            selected = fontFamily == entry.key,
+                            onClick = { settings.fontFamily = entry.key },
                             colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
                         )
                     }
                 }
                 Text(
-                    tr("Рекомендація: system — найбільш читабельний на вашому пристрої",
-                        "Recommendation: system — most readable on your device"),
+                    tr("Google Fonts завантажуються через Google Play Services. Перші секунди може показуватися системний шрифт, поки шрифт скачається.",
+                        "Google Fonts are loaded via Google Play Services. The system font may show for the first few seconds until the font downloads."),
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
 
