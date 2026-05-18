@@ -65,7 +65,7 @@ interface SaleDao {
                COALESCE((
                    SELECT SUM(totalAmount) / NULLIF(SUM(quantity), 0)
                    FROM purchases
-                   WHERE catalogId = s.catalogId
+                   WHERE catalogId = s.catalogId AND quantity > 0
                ), 0.0) * s.quantity as purchaseCost,
                s.netProfit as netProfit
         FROM sales s
