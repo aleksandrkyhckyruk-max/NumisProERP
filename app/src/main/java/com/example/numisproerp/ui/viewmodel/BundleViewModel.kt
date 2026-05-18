@@ -274,53 +274,46 @@ class BundleViewModel @Inject constructor(
     }
 
     /**
-     * Повторити існуючу збірку: підвантажує її компоненти + назву/ціну/коментар
-     * у форму створення нової збірки. Користувач може ще щось підправити
-     * (назву, кількість, додати компоненти) перед збереженням.
+     * Завантажити існуючу збірку як ЗРАЗОК у поточну відкриту форму нової
+     * збірки: переписує `draftName`, `draftComponents`, `draftSuggestedPrice`
+     * і `draftComment`. Користувач далі редагує форму як завжди.
      *
-     * Якщо хоча б одного з компонентів не вистачає на складі — діалог НЕ
-     * відкривається, у [BundleUiState.errorMessage] записується перший
-     * товар, якого бракує (`«Не вистачає на складі: <name> <needed>/<available>»`).
-     * Якщо самої збірки вже немає або в неї не було компонентів —
-     * відповідне повідомлення в errorMessage.
+     * Перевірки наявності на складі тут НЕМАЄ — компоненти з нестачею
+     * завантажуються все одно і будуть візуально підсвічені червоним у формі.
+     * Створити збірку при наявності червоних рядків неможливо: `saveBundle()`
+     * валідує `quantity > availableInStock` і поверне `errorMessage`, а UI
+     * додатково блокує кнопку «Створити».
      */
-    fun repeatBundle(bundleId: String) {
+    fun loadTemplate(bundleId: String) {
         viewModelScope.launch {
             val original = bundleDao.getById(bundleId)
             val originalComponents = bundleDao.getComponentsForBundle(bundleId)
             if (original == null || originalComponents.isEmpty()) {
                 _uiState.value = _uiState.value.copy(
-                    errorMessage = "Не вдалося завантажити збірку для повторення"
+                    errorMessage = "Не вдалося завантажити зразок збірки"
                 )
                 return@launch
             }
 
-            // Поточні залишки на складі для перевірки доступності компонентів.
-            // `productsInStock` уже містить наявні товари (без збірок) — беремо їх
-            // зі стейту, який оновлюється `observeProductsInStock()`.
+            // Поточні залишки на складі — потрібні, щоб правильно показати
+            // `availableInStock` (і червону підсвітку), а також взяти актуальну
+            // середню закупочну ціну. `productsInStock` оновлюється
+            // `observeProductsInStock()`.
             val stockByCatalog = _uiState.value.productsInStock.associateBy { it.catalogId }
 
-            val drafts = mutableListOf<BundleComponentDraft>()
-            for (component in originalComponents) {
+            val drafts = originalComponents.map { component ->
                 val inStock = stockByCatalog[component.componentCatalogId]
                 val name = inStock?.name?.ifBlank { component.componentCatalogId }
                     ?: component.componentCatalogId
-                val available = inStock?.currentStock ?: 0
-                if (available < component.quantity) {
-                    _uiState.value = _uiState.value.copy(
-                        errorMessage = "Не вистачає на складі: $name ${component.quantity}/$available"
-                    )
-                    return@launch
-                }
-                drafts += BundleComponentDraft(
+                BundleComponentDraft(
                     catalogId = component.componentCatalogId,
                     name = name,
                     quantity = component.quantity,
-                    // Використовуємо ПОТОЧНУ середню закупочну ціну, а не ціну з
-                    // моменту створення оригіналу — собівартість/ціна на полиці
-                    // могли змінитися відтоді.
+                    // Використовуємо ПОТОЧНУ середню закупочну ціну, а не
+                    // зафіксовану в момент створення оригіналу — собівартість
+                    // компонента на полиці могла змінитися відтоді.
                     unitCost = inStock?.avgPurchasePrice ?: component.unitCost,
-                    availableInStock = available
+                    availableInStock = inStock?.currentStock ?: 0
                 )
             }
 
@@ -331,7 +324,6 @@ class BundleViewModel @Inject constructor(
             } else ""
 
             _uiState.value = _uiState.value.copy(
-                showCreator = true,
                 draftName = original.name,
                 draftComponents = drafts,
                 draftSuggestedPrice = suggestedPriceText,
