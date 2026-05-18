@@ -56,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 
 import androidx.compose.material3.Scaffold
@@ -94,7 +95,14 @@ import com.numisproerp.ui.i18n.tr
 import com.numisproerp.ui.navigation.NavGraph
 import com.numisproerp.ui.navigation.Screen
 import com.numisproerp.ui.splash.SplashVideoScreen
+import com.numisproerp.ui.theme.LocalBottomBarBrightness
+import com.numisproerp.ui.theme.LocalBottomBarColor
+import com.numisproerp.ui.theme.LocalDrawerBrightness
+import com.numisproerp.ui.theme.LocalDrawerColor
+import com.numisproerp.ui.theme.LocalTopBarBrightness
+import com.numisproerp.ui.theme.LocalTopBarColor
 import com.numisproerp.ui.theme.NumisProERPTheme
+import com.numisproerp.ui.theme.resolveBarColor
 import com.numisproerp.ui.viewmodel.NotificationsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -138,6 +146,12 @@ class MainActivity : ComponentActivity() {
             val emblemSize by settingsManager.emblemSizeState
             val infoCardBackgroundColor by settingsManager.infoCardBackgroundColorState
             val infoCardBackgroundAlpha by settingsManager.infoCardBackgroundAlphaState
+            val topBarColor by settingsManager.topBarColorState
+            val topBarBrightness by settingsManager.topBarBrightnessState
+            val bottomBarColor by settingsManager.bottomBarColorState
+            val bottomBarBrightness by settingsManager.bottomBarBrightnessState
+            val drawerColor by settingsManager.drawerColorState
+            val drawerBrightness by settingsManager.drawerBrightnessState
             var splashFinished by rememberSaveable { mutableStateOf(false) }
             NumisProERPTheme(
                 appTheme = theme,
@@ -152,7 +166,13 @@ class MainActivity : ComponentActivity() {
                 emblemImagePath = emblemImagePath,
                 emblemSize = emblemSize,
                 infoCardBackgroundColorHex = infoCardBackgroundColor,
-                infoCardBackgroundAlpha = infoCardBackgroundAlpha
+                infoCardBackgroundAlpha = infoCardBackgroundAlpha,
+                topBarColorHex = topBarColor,
+                topBarBrightness = topBarBrightness,
+                bottomBarColorHex = bottomBarColor,
+                bottomBarBrightness = bottomBarBrightness,
+                drawerColorHex = drawerColor,
+                drawerBrightness = drawerBrightness
             ) {
                 CompositionLocalProvider(LocalAppLanguage provides language) {
                     Surface(
@@ -205,11 +225,18 @@ fun NumisProERPNavigation() {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
+            // Колір бічного меню: користувацький вибір з SettingsScreen або стандартний
+            // `colorScheme.surface`. `resolveBarColor` гарантує повну непрозорість,
+            // щоб вміст не просвічувався під меню.
+            val drawerHex = LocalDrawerColor.current
+            val drawerBright = LocalDrawerBrightness.current
+            val drawerContainerColor = resolveBarColor(
+                hex = drawerHex,
+                brightness = drawerBright,
+                fallback = MaterialTheme.colorScheme.surface
+            )
             ModalDrawerSheet(
-                // Беремо `surface`, а не `background`, бо при ввімкненому користувацькому
-                // фоновому малюнку `colorScheme.background` стає прозорим (Color.Transparent
-                // має RGB 0,0,0), і `.copy(alpha = 0.96f)` дав би майже непрозорий чорний.
-                drawerContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+                drawerContainerColor = drawerContainerColor
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
                 LazyColumn(
@@ -320,6 +347,13 @@ fun TopBar(
 ) {
     val notifications by notificationsViewModel.notifications.collectAsState()
     val unreadCount = notifications.size
+    // Колір верхнього бару: користувацький вибір + регулятор «світліший/темніший»
+    // або стандартний `primaryContainer` з теми. Прозорості немає.
+    val topBarContainerColor = resolveBarColor(
+        hex = LocalTopBarColor.current,
+        brightness = LocalTopBarBrightness.current,
+        fallback = MaterialTheme.colorScheme.primaryContainer
+    )
     TopAppBar(
         title = { Text("NumisProERP") },
         navigationIcon = {
@@ -341,7 +375,7 @@ fun TopBar(
                 }
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarContainerColor)
     )
 }
 
@@ -358,8 +392,15 @@ fun BottomBar(navController: NavHostController) {
         BottomNavItem(tr("Налашт.", "Settings"), Icons.Default.Settings, Screen.Settings.route, false)
     )
     val inDevSuffix = tr(" в розробці", " in development")
+    // Колір нижнього бару: користувацький вибір + «світліший/темніший»
+    // або стандартний `NavigationBarDefaults.containerColor` з теми. Непрозорий.
+    val bottomBarContainerColor = resolveBarColor(
+        hex = LocalBottomBarColor.current,
+        brightness = LocalBottomBarBrightness.current,
+        fallback = NavigationBarDefaults.containerColor
+    )
 
-    NavigationBar {
+    NavigationBar(containerColor = bottomBarContainerColor) {
         items.forEach { item ->
             NavigationBarItem(
                 selected = false,

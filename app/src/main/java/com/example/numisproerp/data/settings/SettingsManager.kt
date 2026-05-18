@@ -333,6 +333,95 @@ class SettingsManager @Inject constructor(
             prefs.edit().putFloat(KEY_INFO_CARD_BG_ALPHA, clamped).apply()
         }
 
+    // ==================== ВЕРХНІЙ/НИЖНІЙ/БІЧНИЙ БАРИ ====================
+    // Користувач може задати колір фону для кожного з трьох барів та повзунком
+    // зробити його світлішим або темнішим. Жодної реальної прозорості — бари
+    // лишаються повністю непрозорими, щоб вміст не просвічувався під ними.
+    //  brightness < 0 — темніший колір (підмішується чорний),
+    //  brightness > 0 — світліший (підмішується білий),
+    //  brightness = 0 (стандарт) — колір без змін / стандартний бар з теми.
+
+    private val _topBarColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_TOP_BAR_COLOR, "") ?: "")
+
+    val topBarColorState: MutableState<String>
+        get() = _topBarColor
+
+    var topBarColor: String
+        get() = _topBarColor.value
+        set(value) {
+            _topBarColor.value = value
+            prefs.edit().putString(KEY_TOP_BAR_COLOR, value).apply()
+        }
+
+    private val _topBarBrightness: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_TOP_BAR_BRIGHTNESS, 0f))
+
+    val topBarBrightnessState: MutableState<Float>
+        get() = _topBarBrightness
+
+    var topBarBrightness: Float
+        get() = _topBarBrightness.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_BAR_BRIGHTNESS, MAX_BAR_BRIGHTNESS)
+            _topBarBrightness.value = clamped
+            prefs.edit().putFloat(KEY_TOP_BAR_BRIGHTNESS, clamped).apply()
+        }
+
+    private val _bottomBarColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_BOTTOM_BAR_COLOR, "") ?: "")
+
+    val bottomBarColorState: MutableState<String>
+        get() = _bottomBarColor
+
+    var bottomBarColor: String
+        get() = _bottomBarColor.value
+        set(value) {
+            _bottomBarColor.value = value
+            prefs.edit().putString(KEY_BOTTOM_BAR_COLOR, value).apply()
+        }
+
+    private val _bottomBarBrightness: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_BOTTOM_BAR_BRIGHTNESS, 0f))
+
+    val bottomBarBrightnessState: MutableState<Float>
+        get() = _bottomBarBrightness
+
+    var bottomBarBrightness: Float
+        get() = _bottomBarBrightness.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_BAR_BRIGHTNESS, MAX_BAR_BRIGHTNESS)
+            _bottomBarBrightness.value = clamped
+            prefs.edit().putFloat(KEY_BOTTOM_BAR_BRIGHTNESS, clamped).apply()
+        }
+
+    private val _drawerColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_DRAWER_COLOR, "") ?: "")
+
+    val drawerColorState: MutableState<String>
+        get() = _drawerColor
+
+    var drawerColor: String
+        get() = _drawerColor.value
+        set(value) {
+            _drawerColor.value = value
+            prefs.edit().putString(KEY_DRAWER_COLOR, value).apply()
+        }
+
+    private val _drawerBrightness: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_DRAWER_BRIGHTNESS, 0f))
+
+    val drawerBrightnessState: MutableState<Float>
+        get() = _drawerBrightness
+
+    var drawerBrightness: Float
+        get() = _drawerBrightness.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_BAR_BRIGHTNESS, MAX_BAR_BRIGHTNESS)
+            _drawerBrightness.value = clamped
+            prefs.edit().putFloat(KEY_DRAWER_BRIGHTNESS, clamped).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "numispro_settings"
         private const val KEY_THEME = "app_theme"
@@ -352,6 +441,12 @@ class SettingsManager @Inject constructor(
         private const val KEY_EMBLEM_SIZE = "emblem_size"
         private const val KEY_INFO_CARD_BG_COLOR = "info_card_bg_color"
         private const val KEY_INFO_CARD_BG_ALPHA = "info_card_bg_alpha"
+        private const val KEY_TOP_BAR_COLOR = "top_bar_color"
+        private const val KEY_TOP_BAR_BRIGHTNESS = "top_bar_brightness"
+        private const val KEY_BOTTOM_BAR_COLOR = "bottom_bar_color"
+        private const val KEY_BOTTOM_BAR_BRIGHTNESS = "bottom_bar_brightness"
+        private const val KEY_DRAWER_COLOR = "drawer_color"
+        private const val KEY_DRAWER_BRIGHTNESS = "drawer_brightness"
         const val DEFAULT_LOW_STOCK_THRESHOLD = 3
         const val MAX_LOW_STOCK_THRESHOLD = 20
         const val DEFAULT_FONT_SIZE = 14
@@ -377,6 +472,11 @@ class SettingsManager @Inject constructor(
         const val MAX_EMBLEM_SIZE = 160
         // 1.0 = непрозорі картки (старий вигляд).
         const val DEFAULT_INFO_CARD_BG_ALPHA = 1.0f
+        // Межі «освітлення/затемнення» для барів. -0.5 = повністю чорний,
+        // +0.5 = повністю білий, 0 = колір без змін. Бари завжди непрозорі —
+        // повзунок лише перетворює базовий колір, а не задає `alpha`.
+        const val MIN_BAR_BRIGHTNESS = -0.5f
+        const val MAX_BAR_BRIGHTNESS = 0.5f
         /**
          * Ідентифікатори всіх плиток швидкого доступу головного меню.
          * Збігаються з `tileId`, який передається у [QuickAccessButton].

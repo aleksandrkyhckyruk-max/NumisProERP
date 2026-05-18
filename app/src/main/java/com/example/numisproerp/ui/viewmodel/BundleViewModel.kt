@@ -274,6 +274,72 @@ class BundleViewModel @Inject constructor(
     }
 
     /**
+     * Завантажити існуючу збірку як ЗРАЗОК у поточну відкриту форму нової
+     * збірки: переписує `draftName`, `draftComponents`, `draftSuggestedPrice`
+     * і `draftComment`. Користувач далі редагує форму як завжди.
+     *
+     * Перевірки наявності на складі тут НЕМАЄ — компоненти з нестачею
+     * завантажуються все одно і будуть візуально підсвічені червоним у формі.
+     * Створити збірку при наявності червоних рядків неможливо: `saveBundle()`
+     * валідує `quantity > availableInStock` і поверне `errorMessage`, а UI
+     * додатково блокує кнопку «Створити».
+     */
+    fun loadTemplate(bundleId: String) {
+        viewModelScope.launch {
+            val original = bundleDao.getById(bundleId)
+            val originalComponents = bundleDao.getComponentsForBundle(bundleId)
+            if (original == null || originalComponents.isEmpty()) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Не вдалося завантажити зразок збірки"
+                )
+                return@launch
+            }
+
+            // Поточні залишки на складі — потрібні, щоб правильно показати
+            // `availableInStock` (і червону підсвітку), а також взяти актуальну
+            // середню закупочну ціну. `productsInStock` оновлюється
+            // `observeProductsInStock()`.
+            val stockByCatalog = _uiState.value.productsInStock.associateBy { it.catalogId }
+
+            val drafts = originalComponents.map { component ->
+                val inStock = stockByCatalog[component.componentCatalogId]
+                val name = inStock?.name?.ifBlank { component.componentCatalogId }
+                    ?: component.componentCatalogId
+                BundleComponentDraft(
+                    catalogId = component.componentCatalogId,
+                    name = name,
+                    quantity = component.quantity,
+                    // Використовуємо ПОТОЧНУ середню закупочну ціну, а не
+                    // зафіксовану в момент створення оригіналу — собівартість
+                    // компонента на полиці могла змінитися відтоді.
+                    unitCost = inStock?.avgPurchasePrice ?: component.unitCost,
+                    availableInStock = inStock?.currentStock ?: 0
+                )
+            }
+
+            val suggestedPriceText = if (original.suggestedPrice > 0.0) {
+                // Прибираємо зайвий ".0", якщо ціна ціла.
+                val price = original.suggestedPrice
+                if (price % 1.0 == 0.0) price.toLong().toString() else price.toString()
+            } else ""
+
+            _uiState.value = _uiState.value.copy(
+                draftName = original.name,
+                draftComponents = drafts,
+                draftSuggestedPrice = suggestedPriceText,
+                draftComment = original.comment,
+                errorMessage = ""
+            )
+        }
+    }
+
+    fun clearErrorMessage() {
+        if (_uiState.value.errorMessage.isNotBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "")
+        }
+    }
+
+    /**
      * Розібрати збірку назад на компоненти. Атомарно видаляє «слід» збірки в
      * БД (Purchase + всі Writeoff + Bundle + BundleComponent + Product),
      * через що SQL-розрахунок залишку повертає компоненти на склад.

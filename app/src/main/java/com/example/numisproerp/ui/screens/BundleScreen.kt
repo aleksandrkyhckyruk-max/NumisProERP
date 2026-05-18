@@ -24,10 +24,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -49,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -187,6 +191,7 @@ fun BundleScreen(
     if (uiState.showCreator) {
         BundleCreatorDialog(
             stockProducts = uiState.productsInStock,
+            templates = uiState.bundles,
             draftName = uiState.draftName,
             draftComponents = uiState.draftComponents,
             draftSuggestedPrice = uiState.draftSuggestedPrice,
@@ -199,6 +204,7 @@ fun BundleScreen(
             onAddComponent = viewModel::addComponent,
             onChangeQty = viewModel::setComponentQuantity,
             onRemoveComponent = viewModel::removeComponent,
+            onLoadTemplate = viewModel::loadTemplate,
             onDismiss = { viewModel.closeCreator() },
             onSave = { viewModel.saveBundle() }
         )
@@ -358,6 +364,7 @@ private fun MetricCol(label: String, value: String, color: Color) {
 @Composable
 private fun BundleCreatorDialog(
     stockProducts: List<ProductInStock>,
+    templates: List<BundleWithSales>,
     draftName: String,
     draftComponents: List<BundleComponentDraft>,
     draftSuggestedPrice: String,
@@ -370,10 +377,17 @@ private fun BundleCreatorDialog(
     onAddComponent: (ProductInStock) -> Unit,
     onChangeQty: (String, Int) -> Unit,
     onRemoveComponent: (String) -> Unit,
+    onLoadTemplate: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
     var showPicker by remember { mutableStateOf(false) }
+    var showTemplatePicker by remember { mutableStateOf(false) }
+
+    // Кількість компонентів, яких не вистачає на складі. Вмикає червоний банер
+    // вгорі діалогу, блокує кнопку «Створити збірку».
+    val shortageCount = draftComponents.count { it.quantity > it.availableInStock }
+    val canSave = draftName.isNotBlank() && draftComponents.isNotEmpty() && shortageCount == 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -385,6 +399,34 @@ private fun BundleCreatorDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Кнопка завантажити зі зразка — показуємо завжди, навіть коли
+                // зразків немає (в такому разі вона відкриє діалог з підказкою,
+                // що зразків ще не зібрано).
+                OutlinedButton(
+                    onClick = { showTemplatePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        tr(
+                            if (templates.isEmpty())
+                                "Зразків ще немає"
+                            else
+                                "Завантажити зі зразка (${templates.size})",
+                            if (templates.isEmpty())
+                                "No templates yet"
+                            else
+                                "Load from template (${templates.size})"
+                        )
+                    )
+                }
+
                 OutlinedTextField(
                     value = draftName,
                     onValueChange = onNameChange,
@@ -400,6 +442,38 @@ private fun BundleCreatorDialog(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
+
+                // Банер: червона смужка зверху списку компонентів, коли є
+                // дефіцитні позиції. Сам ComponentLine теж підсвічує себе
+                // червоним для конкретного рядка, але банер дає одразу зрозуміти
+                // кількість проблем і чому кнопка «Створити» неактивна.
+                if (shortageCount > 0) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(IOSDesign.ButtonCornerRadius))
+                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f))
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            tr(
+                                "Не вистачає на складі: $shortageCount компонент(ів). Зменшіть кількість червоних рядків, щоб зберегти збірку.",
+                                "Insufficient stock for $shortageCount component(s). Reduce the red rows to save the bundle."
+                            ),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
 
                 if (draftComponents.isEmpty()) {
                     Text(
@@ -471,6 +545,7 @@ private fun BundleCreatorDialog(
         confirmButton = {
             Button(
                 onClick = onSave,
+                enabled = canSave,
                 shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
             ) { Text(tr("Створити збірку", "Create bundle")) }
         },
@@ -490,6 +565,91 @@ private fun BundleCreatorDialog(
             onDismiss = { showPicker = false }
         )
     }
+
+    if (showTemplatePicker) {
+        BundleTemplatePickerDialog(
+            templates = templates,
+            onPick = {
+                onLoadTemplate(it.bundleId)
+                showTemplatePicker = false
+            },
+            onDismiss = { showTemplatePicker = false }
+        )
+    }
+}
+
+/**
+ * Сабдіалог зі списком раніше зібраних збірок-зразків. Один клік копіює назву,
+ * компоненти, ціну й коментар у поточну форму нової збірки (через
+ * `BundleViewModel.loadTemplate`). Завантаження НЕ перевіряє наявність на
+ * складі — самі рядки в формі підсвітяться червоним, якщо чогось не вистачає.
+ */
+@Composable
+private fun BundleTemplatePickerDialog(
+    templates: List<BundleWithSales>,
+    onPick: (BundleWithSales) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val df = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Вибрати зразок", "Pick a template")) },
+        text = {
+            if (templates.isEmpty()) {
+                Text(
+                    tr(
+                        "Зразків ще немає — створіть першу збірку, і вона стане зразком для наступних.",
+                        "No templates yet — create your first bundle and it will become a template for future ones."
+                    ),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(templates) { t ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(IOSDesign.ButtonCornerRadius))
+                                .clickable { onPick(t) }
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = AccentBlue
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    t.name,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = df.format(Date(t.assembledDate)) +
+                                            " · " + formatMoney(t.totalCost),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(tr("Закрити", "Close")) }
+        }
+    )
 }
 
 @Composable

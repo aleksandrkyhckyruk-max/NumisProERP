@@ -185,6 +185,12 @@ fun NumisProERPTheme(
     emblemSize: Int = SettingsManager.DEFAULT_EMBLEM_SIZE,
     infoCardBackgroundColorHex: String = "",
     infoCardBackgroundAlpha: Float = SettingsManager.DEFAULT_INFO_CARD_BG_ALPHA,
+    topBarColorHex: String = "",
+    topBarBrightness: Float = 0f,
+    bottomBarColorHex: String = "",
+    bottomBarBrightness: Float = 0f,
+    drawerColorHex: String = "",
+    drawerBrightness: Float = 0f,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
@@ -236,7 +242,13 @@ fun NumisProERPTheme(
         LocalEmblemImagePath provides emblemImagePath,
         LocalEmblemSize provides emblemSize,
         LocalInfoCardBackgroundColor provides infoCardBackgroundColorHex,
-        LocalInfoCardBackgroundAlpha provides infoCardBackgroundAlpha
+        LocalInfoCardBackgroundAlpha provides infoCardBackgroundAlpha,
+        LocalTopBarColor provides topBarColorHex,
+        LocalTopBarBrightness provides topBarBrightness,
+        LocalBottomBarColor provides bottomBarColorHex,
+        LocalBottomBarBrightness provides bottomBarBrightness,
+        LocalDrawerColor provides drawerColorHex,
+        LocalDrawerBrightness provides drawerBrightness
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
