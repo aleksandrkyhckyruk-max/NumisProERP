@@ -97,10 +97,13 @@ import com.numisproerp.ui.navigation.Screen
 import com.numisproerp.ui.splash.SplashVideoScreen
 import com.numisproerp.ui.theme.LocalBottomBarBrightness
 import com.numisproerp.ui.theme.LocalBottomBarColor
+import com.numisproerp.ui.theme.LocalBottomBarOpacity
 import com.numisproerp.ui.theme.LocalDrawerBrightness
 import com.numisproerp.ui.theme.LocalDrawerColor
+import com.numisproerp.ui.theme.LocalDrawerOpacity
 import com.numisproerp.ui.theme.LocalTopBarBrightness
 import com.numisproerp.ui.theme.LocalTopBarColor
+import com.numisproerp.ui.theme.LocalTopBarOpacity
 import com.numisproerp.ui.theme.NumisProERPTheme
 import com.numisproerp.ui.theme.resolveBarColor
 import com.numisproerp.ui.viewmodel.NotificationsViewModel
@@ -148,10 +151,13 @@ class MainActivity : ComponentActivity() {
             val infoCardBackgroundAlpha by settingsManager.infoCardBackgroundAlphaState
             val topBarColor by settingsManager.topBarColorState
             val topBarBrightness by settingsManager.topBarBrightnessState
+            val topBarOpacity by settingsManager.topBarOpacityState
             val bottomBarColor by settingsManager.bottomBarColorState
             val bottomBarBrightness by settingsManager.bottomBarBrightnessState
+            val bottomBarOpacity by settingsManager.bottomBarOpacityState
             val drawerColor by settingsManager.drawerColorState
             val drawerBrightness by settingsManager.drawerBrightnessState
+            val drawerOpacity by settingsManager.drawerOpacityState
             var splashFinished by rememberSaveable { mutableStateOf(false) }
             NumisProERPTheme(
                 appTheme = theme,
@@ -169,10 +175,13 @@ class MainActivity : ComponentActivity() {
                 infoCardBackgroundAlpha = infoCardBackgroundAlpha,
                 topBarColorHex = topBarColor,
                 topBarBrightness = topBarBrightness,
+                topBarOpacity = topBarOpacity,
                 bottomBarColorHex = bottomBarColor,
                 bottomBarBrightness = bottomBarBrightness,
+                bottomBarOpacity = bottomBarOpacity,
                 drawerColorHex = drawerColor,
-                drawerBrightness = drawerBrightness
+                drawerBrightness = drawerBrightness,
+                drawerOpacity = drawerOpacity
             ) {
                 CompositionLocalProvider(LocalAppLanguage provides language) {
                     Surface(
@@ -230,10 +239,12 @@ fun NumisProERPNavigation() {
             // щоб вміст не просвічувався під меню.
             val drawerHex = LocalDrawerColor.current
             val drawerBright = LocalDrawerBrightness.current
+            val drawerOpacityValue = LocalDrawerOpacity.current
             val drawerContainerColor = resolveBarColor(
                 hex = drawerHex,
                 brightness = drawerBright,
-                fallback = MaterialTheme.colorScheme.surface
+                fallback = MaterialTheme.colorScheme.surface,
+                opacity = drawerOpacityValue
             )
             ModalDrawerSheet(
                 drawerContainerColor = drawerContainerColor
@@ -352,7 +363,8 @@ fun TopBar(
     val topBarContainerColor = resolveBarColor(
         hex = LocalTopBarColor.current,
         brightness = LocalTopBarBrightness.current,
-        fallback = MaterialTheme.colorScheme.primaryContainer
+        fallback = MaterialTheme.colorScheme.primaryContainer,
+        opacity = LocalTopBarOpacity.current
     )
     TopAppBar(
         title = { Text("NumisProERP") },
@@ -397,7 +409,8 @@ fun BottomBar(navController: NavHostController) {
     val bottomBarContainerColor = resolveBarColor(
         hex = LocalBottomBarColor.current,
         brightness = LocalBottomBarBrightness.current,
-        fallback = NavigationBarDefaults.containerColor
+        fallback = NavigationBarDefaults.containerColor,
+        opacity = LocalBottomBarOpacity.current
     )
 
     NavigationBar(containerColor = bottomBarContainerColor) {

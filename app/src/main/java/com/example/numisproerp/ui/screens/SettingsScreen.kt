@@ -444,30 +444,33 @@ fun SettingsScreen(
             item {
                 val topColorSet = settings.topBarColorState.value.isNotBlank()
                 val topBright = settings.topBarBrightnessState.value
+                val topOpacity = settings.topBarOpacityState.value
                 SettingsButton(
                     icon = Icons.Default.ColorLens,
                     title = tr("Верхній бар", "Top bar"),
-                    subtitle = buildBarSubtitle(topColorSet, topBright),
+                    subtitle = buildBarSubtitle(topColorSet, topBright, topOpacity),
                     onClick = { showTopBarDialog = true }
                 )
             }
             item {
                 val bottomColorSet = settings.bottomBarColorState.value.isNotBlank()
                 val bottomBright = settings.bottomBarBrightnessState.value
+                val bottomOpacity = settings.bottomBarOpacityState.value
                 SettingsButton(
                     icon = Icons.Default.ColorLens,
                     title = tr("Нижній бар", "Bottom bar"),
-                    subtitle = buildBarSubtitle(bottomColorSet, bottomBright),
+                    subtitle = buildBarSubtitle(bottomColorSet, bottomBright, bottomOpacity),
                     onClick = { showBottomBarDialog = true }
                 )
             }
             item {
                 val drawerColorSet = settings.drawerColorState.value.isNotBlank()
                 val drawerBright = settings.drawerBrightnessState.value
+                val drawerOpacity = settings.drawerOpacityState.value
                 SettingsButton(
                     icon = Icons.Default.ColorLens,
                     title = tr("Бічне меню", "Side menu"),
-                    subtitle = buildBarSubtitle(drawerColorSet, drawerBright),
+                    subtitle = buildBarSubtitle(drawerColorSet, drawerBright, drawerOpacity),
                     onClick = { showDrawerDialog = true }
                 )
             }
@@ -650,8 +653,10 @@ fun SettingsScreen(
             title = tr("Верхній бар", "Top bar"),
             colorState = settings.topBarColorState,
             brightnessState = settings.topBarBrightnessState,
+            opacityState = settings.topBarOpacityState,
             onColorChange = { settings.topBarColor = it },
             onBrightnessChange = { settings.topBarBrightness = it },
+            onOpacityChange = { settings.topBarOpacity = it },
             onDismiss = { showTopBarDialog = false }
         )
     }
@@ -661,8 +666,10 @@ fun SettingsScreen(
             title = tr("Нижній бар", "Bottom bar"),
             colorState = settings.bottomBarColorState,
             brightnessState = settings.bottomBarBrightnessState,
+            opacityState = settings.bottomBarOpacityState,
             onColorChange = { settings.bottomBarColor = it },
             onBrightnessChange = { settings.bottomBarBrightness = it },
+            onOpacityChange = { settings.bottomBarOpacity = it },
             onDismiss = { showBottomBarDialog = false }
         )
     }
@@ -672,8 +679,10 @@ fun SettingsScreen(
             title = tr("Бічне меню", "Side menu"),
             colorState = settings.drawerColorState,
             brightnessState = settings.drawerBrightnessState,
+            opacityState = settings.drawerOpacityState,
             onColorChange = { settings.drawerColor = it },
             onBrightnessChange = { settings.drawerBrightness = it },
+            onOpacityChange = { settings.drawerOpacity = it },
             onDismiss = { showDrawerDialog = false }
         )
     }
@@ -1356,12 +1365,15 @@ private fun BarCustomizationDialog(
     title: String,
     colorState: androidx.compose.runtime.MutableState<String>,
     brightnessState: androidx.compose.runtime.MutableState<Float>,
+    opacityState: androidx.compose.runtime.MutableState<Float>,
     onColorChange: (String) -> Unit,
     onBrightnessChange: (Float) -> Unit,
+    onOpacityChange: (Float) -> Unit,
     onDismiss: () -> Unit
 ) {
     val colorHex by colorState
     val brightness by brightnessState
+    val opacity by opacityState
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -1391,8 +1403,28 @@ private fun BarCustomizationDialog(
                 )
                 Text(
                     tr(
-                        "Повзунок зміщує вибраний колір у бік чорного (вліво) або білого (вправо). Без реальної прозорості — вміст під баром не просвічується.",
-                        "Slider shifts the selected color toward black (left) or white (right). No real transparency — content does not show through the bar."
+                        "Повзунок зміщує вибраний колір у бік чорного (вліво) або білого (вправо).",
+                        "Slider shifts the selected color toward black (left) or white (right)."
+                    ),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                val opacityPct = (opacity * 100f).toInt()
+                Text(
+                    tr("Прозорість: $opacityPct%", "Opacity: $opacityPct%"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = opacity,
+                    onValueChange = onOpacityChange,
+                    valueRange = SettingsManager.MIN_BAR_OPACITY..SettingsManager.MAX_BAR_OPACITY
+                )
+                Text(
+                    tr(
+                        "100% — повністю непрозорий. Менше — бар стає напівпрозорим, фон/вміст просвічується.",
+                        "100% — fully opaque. Lower values make the bar translucent so content shows through."
                     ),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -1402,8 +1434,8 @@ private fun BarCustomizationDialog(
                 // Превʼю — прямокутник з фінальним кольором бару, щоб одразу
                 // бачити, як він виглядає при поточних налаштуваннях.
                 val fallback = MaterialTheme.colorScheme.surface
-                val preview = remember(colorHex, brightness, fallback) {
-                    com.numisproerp.ui.theme.resolveBarColor(colorHex, brightness, fallback)
+                val preview = remember(colorHex, brightness, opacity, fallback) {
+                    com.numisproerp.ui.theme.resolveBarColor(colorHex, brightness, fallback, opacity)
                 }
                 Text(
                     tr("Превʼю", "Preview"),
@@ -1428,6 +1460,7 @@ private fun BarCustomizationDialog(
             TextButton(onClick = {
                 onColorChange("")
                 onBrightnessChange(0f)
+                onOpacityChange(SettingsManager.DEFAULT_BAR_OPACITY)
             }) { Text(tr("Скинути", "Reset")) }
         }
     )
@@ -1438,7 +1471,7 @@ private fun BarCustomizationDialog(
  * Показує одразу, чи задано колір і поточну корекцію яскравості.
  */
 @Composable
-private fun buildBarSubtitle(colorSet: Boolean, brightness: Float): String {
+private fun buildBarSubtitle(colorSet: Boolean, brightness: Float, opacity: Float): String {
     val pct = (brightness * 100f).toInt()
     val brightnessText = when {
         pct > 0 -> tr("світліший +$pct%", "lighter +$pct%")
@@ -1449,7 +1482,12 @@ private fun buildBarSubtitle(colorSet: Boolean, brightness: Float): String {
         tr("колір вибрано", "color set")
     else
         tr("стандартний колір", "default color")
-    return "$colorText · $brightnessText"
+    val opacityPct = (opacity * 100f).toInt()
+    val opacityText = if (opacity < SettingsManager.MAX_BAR_OPACITY)
+        tr("прозорість $opacityPct%", "opacity $opacityPct%")
+    else
+        tr("непрозорий", "opaque")
+    return "$colorText · $brightnessText · $opacityText"
 }
 
 // ======================== Color picker row ========================

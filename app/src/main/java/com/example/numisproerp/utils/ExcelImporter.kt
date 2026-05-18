@@ -136,6 +136,21 @@ class ExcelImporter(
                         val issueDate = row.getCell(6)?.toString() ?: ""
                         val quality = row.getCell(7)?.toString() ?: ""
                         val photoPath = row.getCell(8)?.toString() ?: ""
+                        // Розширений експорт (колонки 9-18) додано для підтримки
+                        // ручно доданих товарів. Старі експорти не мають цих
+                        // колонок — fall-back на порожній рядок / 0.0 / false.
+                        val photoPathBack = row.getCell(9)?.toString() ?: ""
+                        val diameter = row.getCell(10)?.toString() ?: ""
+                        val weight = row.getCell(11)?.toString() ?: ""
+                        val mintageAnnounced = row.getCell(12)?.toString() ?: ""
+                        val mintageActual = row.getCell(13)?.toString() ?: ""
+                        val artist = row.getCell(14)?.toString() ?: ""
+                        val sculptor = row.getCell(15)?.toString() ?: ""
+                        val description = row.getCell(16)?.toString() ?: ""
+                        val estimatedValue = (row.getCell(17)?.toString() ?: "")
+                            .replace(',', '.').toDoubleOrNull() ?: 0.0
+                        val isManualStr = row.getCell(18)?.toString()?.trim() ?: ""
+                        val isManual = isManualStr == "1" || isManualStr.equals("true", ignoreCase = true)
                         val catalogId = if (rawCatalogId.isBlank()) {
                             productsAutoIdCount++
                             // Детермінований ID: MD5-хеш від контенту рядка. Повторний імпорт
@@ -153,7 +168,17 @@ class ExcelImporter(
                             category = category,
                             issueDate = issueDate,
                             quality = quality,
-                            photoPath = photoPath
+                            diameter = diameter,
+                            weight = weight,
+                            mintageAnnounced = mintageAnnounced,
+                            mintageActual = mintageActual,
+                            artist = artist,
+                            sculptor = sculptor,
+                            photoPath = photoPath,
+                            photoPathBack = photoPathBack,
+                            description = description,
+                            estimatedValue = estimatedValue,
+                            isManual = isManual
                         )
                     } else {
                         val series = row.getCell(2)?.toString() ?: ""

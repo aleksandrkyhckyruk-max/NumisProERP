@@ -81,9 +81,25 @@ class ProductsViewModel @Inject constructor(
     }
 
     fun getProductImageUrls(product: Product): Pair<String, String> {
-        if (product.photoPath.isNotBlank()) return Pair(product.photoPath, "")
+        // Пріоритет віддаємо власним фото товару (якщо є) — в тому числі
+        // ручно доданим товарам, які можуть мати photoPath і photoPathBack.
+        if (product.photoPath.isNotBlank() || product.photoPathBack.isNotBlank()) {
+            return Pair(product.photoPath, product.photoPathBack)
+        }
         val map = _uiState.value.catalogImagePairMap
         return map[product.catalogId] ?: map[product.name] ?: Pair("", "")
+    }
+
+    /**
+     * Додає товар вручну в каталог. ID покладаються репозиторієм.
+     */
+    fun addManualProduct(product: Product, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.insertProduct(product)
+            loadProducts()
+            loadCategories()
+            onDone()
+        }
     }
 
     /**

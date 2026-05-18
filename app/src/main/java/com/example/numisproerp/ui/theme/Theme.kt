@@ -187,10 +187,13 @@ fun NumisProERPTheme(
     infoCardBackgroundAlpha: Float = SettingsManager.DEFAULT_INFO_CARD_BG_ALPHA,
     topBarColorHex: String = "",
     topBarBrightness: Float = 0f,
+    topBarOpacity: Float = SettingsManager.DEFAULT_BAR_OPACITY,
     bottomBarColorHex: String = "",
     bottomBarBrightness: Float = 0f,
+    bottomBarOpacity: Float = SettingsManager.DEFAULT_BAR_OPACITY,
     drawerColorHex: String = "",
     drawerBrightness: Float = 0f,
+    drawerOpacity: Float = SettingsManager.DEFAULT_BAR_OPACITY,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
@@ -245,10 +248,13 @@ fun NumisProERPTheme(
         LocalInfoCardBackgroundAlpha provides infoCardBackgroundAlpha,
         LocalTopBarColor provides topBarColorHex,
         LocalTopBarBrightness provides topBarBrightness,
+        LocalTopBarOpacity provides topBarOpacity,
         LocalBottomBarColor provides bottomBarColorHex,
         LocalBottomBarBrightness provides bottomBarBrightness,
+        LocalBottomBarOpacity provides bottomBarOpacity,
         LocalDrawerColor provides drawerColorHex,
-        LocalDrawerBrightness provides drawerBrightness
+        LocalDrawerBrightness provides drawerBrightness,
+        LocalDrawerOpacity provides drawerOpacity
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

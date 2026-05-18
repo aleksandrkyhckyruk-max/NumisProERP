@@ -456,7 +456,9 @@ fun ClientsScreen(
                                                     date = s.date,
                                                     productName = s.productName,
                                                     quantity = s.quantity,
-                                                    totalAmount = s.totalAmount
+                                                    totalAmount = s.totalAmount,
+                                                    purchaseCost = s.purchaseCost,
+                                                    netProfit = s.netProfit
                                                 )
                                             }
                                         val grouped = groupHistoryByDay(records)
@@ -470,11 +472,50 @@ fun ClientsScreen(
                                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                             )
                                         } else {
+                                            val totalSales = records.sumOf { it.totalAmount }
+                                            val totalCost = records.sumOf { it.purchaseCost }
+                                            val totalProfit = records.sumOf { it.netProfit }
+                                            Card(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = AccentGreen.copy(alpha = 0.10f)
+                                                )
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(12.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = tr("Підсумок", "Summary"),
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        fontSize = 13.sp
+                                                    )
+                                                    Text(
+                                                        text = "${tr("Реалізація", "Revenue")}: ${String.format("%,.2f \u20b4", totalSales)}",
+                                                        fontSize = 12.sp
+                                                    )
+                                                    Text(
+                                                        text = "${tr("Закупка", "Cost")}: ${String.format("%,.2f \u20b4", totalCost)}",
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                                    )
+                                                    Text(
+                                                        text = "${tr("Прибуток", "Profit")}: ${String.format("%,.2f \u20b4", totalProfit)}",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (totalProfit >= 0) AccentGreen else androidx.compose.ui.graphics.Color(0xFFD32F2F)
+                                                    )
+                                                }
+                                            }
                                             grouped.forEach { (day, items) ->
                                                 DayGroupCard(
                                                     day = day,
                                                     records = items,
-                                                    summaryColor = AccentGreen
+                                                    summaryColor = AccentGreen,
+                                                    showProfit = true
                                                 )
                                             }
                                         }
@@ -703,9 +744,10 @@ fun ClientCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.Top
             ) {
                 Row(
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IOSIconChip(
@@ -713,11 +755,16 @@ fun ClientCard(
                         tint = AccentBlue
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    // Колонка з імʼям + місто. Імʼя може займати до 3 рядків,
+                    // якщо довге — переноситься, а не «вилазить» за межі карточки
+                    // або не зрізається кнопкою/сумою праворуч.
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = client.name,
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         if (client.city.isNotEmpty()) {
                             Row(
@@ -733,7 +780,9 @@ fun ClientCard(
                                 Text(
                                     text = client.city,
                                     fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    maxLines = 2,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
                             }
                         }

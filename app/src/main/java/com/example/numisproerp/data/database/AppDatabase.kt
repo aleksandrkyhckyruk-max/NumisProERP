@@ -43,7 +43,7 @@ import com.numisproerp.data.entities.Note
         Bundle::class,
         BundleComponent::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -214,6 +214,28 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                     db.execSQL(
                         "UPDATE `writeoffs` SET `isBundleOp` = 1 WHERE `writeoffId` LIKE 'WO_BUNDLE_%'"
+                    )
+                }
+            },
+            // 18 → 19: розширення таблиці products для підтримки ручного
+            // додавання товарів (кнопка «Додати товар» на екрані «Товари»):
+            //   - photoPathBack — друге фото (реверс),
+            //   - estimatedValue — орієнтовна вартість для товарів без закупок,
+            //   - description — довільний опис,
+            //   - isManual — прапор «додано вручну» (для фільтрації в звітах).
+            object : Migration(18, 19) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "ALTER TABLE `products` ADD COLUMN `photoPathBack` TEXT NOT NULL DEFAULT ''"
+                    )
+                    db.execSQL(
+                        "ALTER TABLE `products` ADD COLUMN `estimatedValue` REAL NOT NULL DEFAULT 0.0"
+                    )
+                    db.execSQL(
+                        "ALTER TABLE `products` ADD COLUMN `description` TEXT NOT NULL DEFAULT ''"
+                    )
+                    db.execSQL(
+                        "ALTER TABLE `products` ADD COLUMN `isManual` INTEGER NOT NULL DEFAULT 0"
                     )
                 }
             }
