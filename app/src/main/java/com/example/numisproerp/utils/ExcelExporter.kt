@@ -89,6 +89,18 @@ class ExcelExporter(
         header.createCell(6).setCellValue("Дата випуску")
         header.createCell(7).setCellValue("Якість")
         header.createCell(8).setCellValue("PhotoPath")
+        // Розширені поля для ручно доданих товарів і відновлення повної інформації
+        // після експорту/імпорту. Старі імпортери (8 колонок) їх просто проігнорують.
+        header.createCell(9).setCellValue("PhotoPathBack")
+        header.createCell(10).setCellValue("Діаметр")
+        header.createCell(11).setCellValue("Вага")
+        header.createCell(12).setCellValue("Тираж (заявлено)")
+        header.createCell(13).setCellValue("Тираж (фактично)")
+        header.createCell(14).setCellValue("Художник")
+        header.createCell(15).setCellValue("Скульптор")
+        header.createCell(16).setCellValue("Опис")
+        header.createCell(17).setCellValue("Орієнтовна вартість")
+        header.createCell(18).setCellValue("isManual")
 
         val products = database.productDao().getAllProductsSync()
         var rowNum = 1
@@ -103,6 +115,16 @@ class ExcelExporter(
             row.createCell(6).setCellValue(product.issueDate)
             row.createCell(7).setCellValue(product.quality)
             row.createCell(8).setCellValue(product.photoPath)
+            row.createCell(9).setCellValue(product.photoPathBack)
+            row.createCell(10).setCellValue(product.diameter)
+            row.createCell(11).setCellValue(product.weight)
+            row.createCell(12).setCellValue(product.mintageAnnounced)
+            row.createCell(13).setCellValue(product.mintageActual)
+            row.createCell(14).setCellValue(product.artist)
+            row.createCell(15).setCellValue(product.sculptor)
+            row.createCell(16).setCellValue(product.description)
+            row.createCell(17).setCellValue(product.estimatedValue)
+            row.createCell(18).setCellValue(if (product.isManual) "1" else "0")
             rowNum++
         }
     }

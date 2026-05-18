@@ -227,9 +227,15 @@ fun SaleScreen(
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(client.name, fontWeight = FontWeight.Medium)
+                                        Text(
+                                            text = client.name,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                            maxLines = 2,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
                                         if (uiState.selectedClientId == client.clientId) {
                                             Text(tr("Вибрано", "Selected"), color = AccentGreen, fontSize = 12.sp)
                                         }
@@ -260,12 +266,18 @@ fun SaleScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    // Імʼя клієнта займає всю доступну ширину
+                                    // (weight=1f) і переноситься на кілька рядків
+                                    // при необхідності. Кнопка «Змінити» завжди
+                                    // праворуч і не «давиться» довгим текстом.
                                     Text(
                                         text = "${tr("Вибрано", "Selected")}: ${selectedClient.name}",
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                        maxLines = 3,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                     TextButton(onClick = { viewModel.updateSelectedClient("") }) {
                                         Text(tr("Змінити", "Change"), color = AccentRed)

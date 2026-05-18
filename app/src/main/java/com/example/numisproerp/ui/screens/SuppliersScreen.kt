@@ -676,9 +676,10 @@ fun SupplierCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.Top
             ) {
                 Row(
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IOSIconChip(
@@ -686,17 +687,23 @@ fun SupplierCard(
                         tint = AccentOrange
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    // Довгі назви постачальників переносяться на кілька рядків,
+                    // щоб не наїжджати на суму праворуч і кнопки нижче.
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = supplier.name,
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         if (supplier.type.isNotEmpty()) {
                             Text(
                                 text = supplier.type,
                                 fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                         }
                     }

@@ -13,7 +13,9 @@ data class SaleWithProductName(
     val productName: String,
     val quantity: Int,
     val pricePerUnit: Double,
-    val totalAmount: Double
+    val totalAmount: Double,
+    val purchaseCost: Double,
+    val netProfit: Double
 )
 
 data class SaleWithDetails(
@@ -59,7 +61,13 @@ interface SaleDao {
 
     @Query("""
         SELECT s.saleId, s.date, s.catalogId, s.quantity, s.pricePerUnit, s.totalAmount,
-               pr.name as productName
+               pr.name as productName,
+               COALESCE((
+                   SELECT SUM(totalAmount) / NULLIF(SUM(quantity), 0)
+                   FROM purchases
+                   WHERE catalogId = s.catalogId AND quantity > 0
+               ), 0.0) * s.quantity as purchaseCost,
+               s.netProfit as netProfit
         FROM sales s
         JOIN products pr ON s.catalogId = pr.catalogId
         WHERE s.clientId = :clientId

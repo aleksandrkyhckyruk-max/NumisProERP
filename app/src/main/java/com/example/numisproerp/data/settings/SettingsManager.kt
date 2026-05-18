@@ -422,6 +422,55 @@ class SettingsManager @Inject constructor(
             prefs.edit().putFloat(KEY_DRAWER_BRIGHTNESS, clamped).apply()
         }
 
+    // ==================== ПРОЗОРІСТЬ БАРІВ ====================
+    // На відміну від «світліше/темніше» (brightness), ці значення задають
+    // саме alpha-канал контейнера бару — від MIN_BAR_OPACITY (майже прозорий,
+    // вміст просвічується) до 1.0 (повністю непрозорий, стандартна поведінка).
+    // Значення зберігається у SharedPreferences та зчитується на старті —
+    // зміни підхоплюються рекомпозицією через MutableState.
+
+    private val _topBarOpacity: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_TOP_BAR_OPACITY, DEFAULT_BAR_OPACITY))
+
+    val topBarOpacityState: MutableState<Float>
+        get() = _topBarOpacity
+
+    var topBarOpacity: Float
+        get() = _topBarOpacity.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_BAR_OPACITY, MAX_BAR_OPACITY)
+            _topBarOpacity.value = clamped
+            prefs.edit().putFloat(KEY_TOP_BAR_OPACITY, clamped).apply()
+        }
+
+    private val _bottomBarOpacity: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_BOTTOM_BAR_OPACITY, DEFAULT_BAR_OPACITY))
+
+    val bottomBarOpacityState: MutableState<Float>
+        get() = _bottomBarOpacity
+
+    var bottomBarOpacity: Float
+        get() = _bottomBarOpacity.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_BAR_OPACITY, MAX_BAR_OPACITY)
+            _bottomBarOpacity.value = clamped
+            prefs.edit().putFloat(KEY_BOTTOM_BAR_OPACITY, clamped).apply()
+        }
+
+    private val _drawerOpacity: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_DRAWER_OPACITY, DEFAULT_BAR_OPACITY))
+
+    val drawerOpacityState: MutableState<Float>
+        get() = _drawerOpacity
+
+    var drawerOpacity: Float
+        get() = _drawerOpacity.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_BAR_OPACITY, MAX_BAR_OPACITY)
+            _drawerOpacity.value = clamped
+            prefs.edit().putFloat(KEY_DRAWER_OPACITY, clamped).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "numispro_settings"
         private const val KEY_THEME = "app_theme"
@@ -447,6 +496,9 @@ class SettingsManager @Inject constructor(
         private const val KEY_BOTTOM_BAR_BRIGHTNESS = "bottom_bar_brightness"
         private const val KEY_DRAWER_COLOR = "drawer_color"
         private const val KEY_DRAWER_BRIGHTNESS = "drawer_brightness"
+        private const val KEY_TOP_BAR_OPACITY = "top_bar_opacity"
+        private const val KEY_BOTTOM_BAR_OPACITY = "bottom_bar_opacity"
+        private const val KEY_DRAWER_OPACITY = "drawer_opacity"
         const val DEFAULT_LOW_STOCK_THRESHOLD = 3
         const val MAX_LOW_STOCK_THRESHOLD = 20
         const val DEFAULT_FONT_SIZE = 14
@@ -477,6 +529,13 @@ class SettingsManager @Inject constructor(
         // повзунок лише перетворює базовий колір, а не задає `alpha`.
         const val MIN_BAR_BRIGHTNESS = -0.5f
         const val MAX_BAR_BRIGHTNESS = 0.5f
+        // Прозорість бару (alpha-канал контейнера). 1.0 — повністю непрозорий
+        // (стандартна поведінка), значення нижче — бар стає напівпрозорим,
+        // вміст під ним просвічується. Нижня межа — 0.2 щоб бар повністю
+        // не зник і кнопки залишалися видимими.
+        const val MIN_BAR_OPACITY = 0.2f
+        const val MAX_BAR_OPACITY = 1.0f
+        const val DEFAULT_BAR_OPACITY = 1.0f
         /**
          * Ідентифікатори всіх плиток швидкого доступу головного меню.
          * Збігаються з `tileId`, який передається у [QuickAccessButton].

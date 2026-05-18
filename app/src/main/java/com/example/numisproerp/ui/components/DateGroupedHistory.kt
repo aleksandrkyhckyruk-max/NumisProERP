@@ -65,12 +65,18 @@ import java.util.Locale
  * Запис історії, незалежний від типу: дата, кількість, сума, ім'я товару.
  * Підходить і для закупівель (постачальник), і для продажів (клієнт), і для
  * будь-яких інших агрегацій по дню.
+ *
+ * Опціональні поля [purchaseCost] і [netProfit] заповнюються в історії
+ * продажів клієнта — у DayGroupCard їх відображення активується через
+ * прапор `showProfit`.
  */
 data class HistoryRecord(
     val date: Long,
     val productName: String,
     val quantity: Int,
-    val totalAmount: Double
+    val totalAmount: Double,
+    val purchaseCost: Double = 0.0,
+    val netProfit: Double = 0.0
 )
 
 /**
@@ -217,11 +223,15 @@ fun DayGroupCard(
     day: Long,
     records: List<HistoryRecord>,
     summaryColor: androidx.compose.ui.graphics.Color = AccentBlue,
-    currencyFormat: (Double) -> String = { String.format("%,.2f \u20b4", it) }
+    currencyFormat: (Double) -> String = { String.format("%,.2f \u20b4", it) },
+    showProfit: Boolean = false
 ) {
     val df = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
     val totalQty = records.sumOf { it.quantity }
     val totalAmount = records.sumOf { it.totalAmount }
+    val totalCost = records.sumOf { it.purchaseCost }
+    val totalProfit = records.sumOf { it.netProfit }
+    val profitColor = if (totalProfit >= 0) AccentBlue else Color(0xFFD32F2F)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -255,38 +265,76 @@ fun DayGroupCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = currencyFormat(totalAmount),
+                        text = "${tr("Сума", "Sum")}: ${currencyFormat(totalAmount)}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = summaryColor
                     )
+                    if (showProfit) {
+                        Text(
+                            text = "${tr("Закупка", "Cost")}: ${currencyFormat(totalCost)}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "${tr("Прибуток", "Profit")}: ${currencyFormat(totalProfit)}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = profitColor
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
             records.forEach { rec ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = rec.productName,
-                        fontSize = 12.sp,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1
-                    )
-                    Text(
-                        text = "${rec.quantity} ${tr("шт.", "pcs")}",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = currencyFormat(rec.totalAmount),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = summaryColor
-                    )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = rec.productName,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${rec.quantity} ${tr("шт.", "pcs")}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = currencyFormat(rec.totalAmount),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = summaryColor
+                        )
+                    }
+                    if (showProfit) {
+                        val recProfitColor = if (rec.netProfit >= 0) AccentBlue else Color(0xFFD32F2F)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 4.dp, top = 2.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Text(
+                                text = "${tr("Закупка", "Cost")}: ${currencyFormat(rec.purchaseCost)}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${tr("Прибуток", "Profit")}: ${currencyFormat(rec.netProfit)}",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = recProfitColor
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -17,21 +17,27 @@ import com.numisproerp.data.settings.SettingsManager
  *
  * За `brightness == 0` та порожнім `hex` повертається `fallback` як є — старий вигляд без налаштувань.
  */
-fun resolveBarColor(hex: String, brightness: Float, fallback: Color): Color {
+fun resolveBarColor(
+    hex: String,
+    brightness: Float,
+    fallback: Color,
+    opacity: Float = SettingsManager.DEFAULT_BAR_OPACITY
+): Color {
     val base: Color = if (hex.isBlank()) {
         fallback
     } else {
         runCatching { Color(android.graphics.Color.parseColor("#$hex")) }.getOrDefault(fallback)
     }
     val b = brightness.coerceIn(SettingsManager.MIN_BAR_BRIGHTNESS, SettingsManager.MAX_BAR_BRIGHTNESS)
-    if (b == 0f) return base.copy(alpha = 1f)
+    val alpha = opacity.coerceIn(SettingsManager.MIN_BAR_OPACITY, SettingsManager.MAX_BAR_OPACITY)
+    if (b == 0f) return base.copy(alpha = alpha)
     // Перетворюємо -0.5..+0.5 у [0..1] силу домішування з білим/чорним.
     val mixAmount = (kotlin.math.abs(b) * 2f).coerceIn(0f, 1f)
     val target = if (b > 0f) Color.White else Color.Black
     val r = base.red + (target.red - base.red) * mixAmount
     val g = base.green + (target.green - base.green) * mixAmount
     val bl = base.blue + (target.blue - base.blue) * mixAmount
-    return Color(red = r, green = g, blue = bl, alpha = 1f)
+    return Color(red = r, green = g, blue = bl, alpha = alpha)
 }
 
 /**
@@ -126,3 +132,20 @@ val LocalDrawerColor = compositionLocalOf { "" }
  * «Освітлення/затемнення» бічного меню (-0.5..+0.5). 0 — без змін.
  */
 val LocalDrawerBrightness = compositionLocalOf { 0f }
+
+/**
+ * Прозорість фону верхнього бару (0.2..1.0). 1.0 — повністю непрозорий (старий
+ * вигляд), значення нижче — бар стає напівпрозорим. Заповнюється у
+ * `NumisProERPTheme` із SettingsManager.
+ */
+val LocalTopBarOpacity = compositionLocalOf { SettingsManager.DEFAULT_BAR_OPACITY }
+
+/**
+ * Прозорість фону нижнього бару (0.2..1.0). 1.0 — повністю непрозорий.
+ */
+val LocalBottomBarOpacity = compositionLocalOf { SettingsManager.DEFAULT_BAR_OPACITY }
+
+/**
+ * Прозорість фону бічного меню (0.2..1.0). 1.0 — повністю непрозорий.
+ */
+val LocalDrawerOpacity = compositionLocalOf { SettingsManager.DEFAULT_BAR_OPACITY }
