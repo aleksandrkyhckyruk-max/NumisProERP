@@ -129,6 +129,9 @@ fun SettingsScreen(
     var showTileIconsDialog by remember { mutableStateOf(false) }
     var showEmblemDialog by remember { mutableStateOf(false) }
     var showInfoCardsDialog by remember { mutableStateOf(false) }
+    var showTopBarDialog by remember { mutableStateOf(false) }
+    var showBottomBarDialog by remember { mutableStateOf(false) }
+    var showDrawerDialog by remember { mutableStateOf(false) }
     // Поточна плитка, для якої запускається picker (`tileId`). Зберігаємо тут,
     // щоб після повернення з image-picker зрозуміти, куди писати файл.
     var pickerTileId by remember { mutableStateOf("") }
@@ -363,10 +366,27 @@ fun SettingsScreen(
                 )
             }
             item {
+                val familyKey by settings.fontFamilyState
+                val fontSizeSp by settings.fontSizeState
+                // Назва поточного шрифту: для Google Fonts беремо displayName з [GoogleFontOptions],
+                // для системних — даємо людську підписку. Додаємо в підзаголовок, щоб видно було,
+                // який шрифт було обрано, прямо на екрані Налаштувань.
+                val familyName = remember(familyKey) {
+                    com.numisproerp.ui.theme.GoogleFontOptions.firstOrNull { it.key == familyKey }?.displayName
+                        ?: when (familyKey) {
+                            "sans-serif" -> "Sans-serif"
+                            "serif" -> "Serif"
+                            "monospace" -> "Monospace"
+                            else -> "System"
+                        }
+                }
                 SettingsButton(
                     icon = Icons.Default.FormatSize,
                     title = tr("Шрифти", "Fonts"),
-                    subtitle = tr("Розмір, тип, колір", "Size, type, color"),
+                    subtitle = tr(
+                        "$familyName · ${fontSizeSp}sp",
+                        "$familyName · ${fontSizeSp}sp"
+                    ),
                     onClick = { showFontsDialog = true }
                 )
             }
@@ -419,6 +439,36 @@ fun SettingsScreen(
                         tr("Стандартний фон · Прозорість: $infoAlphaPct%",
                            "Default background · Opacity: $infoAlphaPct%"),
                     onClick = { showInfoCardsDialog = true }
+                )
+            }
+            item {
+                val topColorSet = settings.topBarColorState.value.isNotBlank()
+                val topBright = settings.topBarBrightnessState.value
+                SettingsButton(
+                    icon = Icons.Default.ColorLens,
+                    title = tr("Верхній бар", "Top bar"),
+                    subtitle = buildBarSubtitle(topColorSet, topBright),
+                    onClick = { showTopBarDialog = true }
+                )
+            }
+            item {
+                val bottomColorSet = settings.bottomBarColorState.value.isNotBlank()
+                val bottomBright = settings.bottomBarBrightnessState.value
+                SettingsButton(
+                    icon = Icons.Default.ColorLens,
+                    title = tr("Нижній бар", "Bottom bar"),
+                    subtitle = buildBarSubtitle(bottomColorSet, bottomBright),
+                    onClick = { showBottomBarDialog = true }
+                )
+            }
+            item {
+                val drawerColorSet = settings.drawerColorState.value.isNotBlank()
+                val drawerBright = settings.drawerBrightnessState.value
+                SettingsButton(
+                    icon = Icons.Default.ColorLens,
+                    title = tr("Бічне меню", "Side menu"),
+                    subtitle = buildBarSubtitle(drawerColorSet, drawerBright),
+                    onClick = { showDrawerDialog = true }
                 )
             }
 
@@ -592,6 +642,39 @@ fun SettingsScreen(
         InfoCardsDialog(
             settings = settings,
             onDismiss = { showInfoCardsDialog = false }
+        )
+    }
+
+    if (showTopBarDialog) {
+        BarCustomizationDialog(
+            title = tr("Верхній бар", "Top bar"),
+            colorState = settings.topBarColorState,
+            brightnessState = settings.topBarBrightnessState,
+            onColorChange = { settings.topBarColor = it },
+            onBrightnessChange = { settings.topBarBrightness = it },
+            onDismiss = { showTopBarDialog = false }
+        )
+    }
+
+    if (showBottomBarDialog) {
+        BarCustomizationDialog(
+            title = tr("Нижній бар", "Bottom bar"),
+            colorState = settings.bottomBarColorState,
+            brightnessState = settings.bottomBarBrightnessState,
+            onColorChange = { settings.bottomBarColor = it },
+            onBrightnessChange = { settings.bottomBarBrightness = it },
+            onDismiss = { showBottomBarDialog = false }
+        )
+    }
+
+    if (showDrawerDialog) {
+        BarCustomizationDialog(
+            title = tr("Бічне меню", "Side menu"),
+            colorState = settings.drawerColorState,
+            brightnessState = settings.drawerBrightnessState,
+            onColorChange = { settings.drawerColor = it },
+            onBrightnessChange = { settings.drawerBrightness = it },
+            onDismiss = { showDrawerDialog = false }
         )
     }
 
@@ -837,6 +920,37 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Велике превъю поточного вибраного шрифту. Показує одну фразу укр/анг
+                // нинішнім шрифтом і розміром, щоб користувач одразу бачив, чи змінюється
+                // вибір після кліку, без потреби виходити з діалогу.
+                val previewFamily = familyFonts[fontFamily]
+                    ?: androidx.compose.ui.text.font.FontFamily.Default
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            tr("Поточний шрифт", "Current font"),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = tr(
+                                "Нумізматика — Гривня, 1996. The quick brown fox.",
+                                "Numismatics — Hryvnia, 1996. The quick brown fox."
+                            ),
+                            fontSize = fontSize.sp,
+                            fontFamily = previewFamily,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
+                }
+
                 // Size
                 Text(tr("Розмір шрифту: ${fontSize}sp", "Font size: ${fontSize}sp"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Slider(
@@ -1226,6 +1340,116 @@ private fun InfoCardsDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
     )
+}
+
+// ======================== Bar customization dialog ========================
+
+/**
+ * Універсальний діалог налаштування фону одного з барів додатку
+ * (верхній / нижній / бічне меню). Дозволяє вибрати колір зі спільної палітри
+ * та повзунком зробити цей колір помітно темнішим або світлішим. Прозорості
+ * немає — бар лишається повністю непрозорим, щоб під ним не просвічувався
+ * вміст екрана.
+ */
+@Composable
+private fun BarCustomizationDialog(
+    title: String,
+    colorState: androidx.compose.runtime.MutableState<String>,
+    brightnessState: androidx.compose.runtime.MutableState<Float>,
+    onColorChange: (String) -> Unit,
+    onBrightnessChange: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colorHex by colorState
+    val brightness by brightnessState
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    tr("Колір фону", "Background color"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                ColorPickerRow(currentHex = colorHex, onSelect = onColorChange)
+
+                Spacer(modifier = Modifier.height(4.dp))
+                val pct = (brightness * 100f).toInt()
+                val brightnessLabel = when {
+                    pct > 0 -> tr("Світліший: +$pct%", "Lighter: +$pct%")
+                    pct < 0 -> tr("Темніший: $pct%", "Darker: $pct%")
+                    else -> tr("Без змін", "No change")
+                }
+                Text(brightnessLabel, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Slider(
+                    value = brightness,
+                    onValueChange = onBrightnessChange,
+                    valueRange = SettingsManager.MIN_BAR_BRIGHTNESS..SettingsManager.MAX_BAR_BRIGHTNESS
+                )
+                Text(
+                    tr(
+                        "Повзунок зміщує вибраний колір у бік чорного (вліво) або білого (вправо). Без реальної прозорості — вміст під баром не просвічується.",
+                        "Slider shifts the selected color toward black (left) or white (right). No real transparency — content does not show through the bar."
+                    ),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                // Превʼю — прямокутник з фінальним кольором бару, щоб одразу
+                // бачити, як він виглядає при поточних налаштуваннях.
+                val fallback = MaterialTheme.colorScheme.surface
+                val preview = remember(colorHex, brightness, fallback) {
+                    com.numisproerp.ui.theme.resolveBarColor(colorHex, brightness, fallback)
+                }
+                Text(
+                    tr("Превʼю", "Preview"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(preview)
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                            RoundedCornerShape(10.dp)
+                        )
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } },
+        dismissButton = {
+            TextButton(onClick = {
+                onColorChange("")
+                onBrightnessChange(0f)
+            }) { Text(tr("Скинути", "Reset")) }
+        }
+    )
+}
+
+/**
+ * Текст-підказка під кнопкою налаштування бару у списку Settings.
+ * Показує одразу, чи задано колір і поточну корекцію яскравості.
+ */
+@Composable
+private fun buildBarSubtitle(colorSet: Boolean, brightness: Float): String {
+    val pct = (brightness * 100f).toInt()
+    val brightnessText = when {
+        pct > 0 -> tr("світліший +$pct%", "lighter +$pct%")
+        pct < 0 -> tr("темніший $pct%", "darker $pct%")
+        else -> tr("без змін", "no change")
+    }
+    val colorText = if (colorSet)
+        tr("колір вибрано", "color set")
+    else
+        tr("стандартний колір", "default color")
+    return "$colorText · $brightnessText"
 }
 
 // ======================== Color picker row ========================

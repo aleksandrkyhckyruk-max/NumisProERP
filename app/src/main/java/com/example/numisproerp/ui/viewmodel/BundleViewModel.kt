@@ -274,6 +274,80 @@ class BundleViewModel @Inject constructor(
     }
 
     /**
+     * Повторити існуючу збірку: підвантажує її компоненти + назву/ціну/коментар
+     * у форму створення нової збірки. Користувач може ще щось підправити
+     * (назву, кількість, додати компоненти) перед збереженням.
+     *
+     * Якщо хоча б одного з компонентів не вистачає на складі — діалог НЕ
+     * відкривається, у [BundleUiState.errorMessage] записується перший
+     * товар, якого бракує (`«Не вистачає на складі: <name> <needed>/<available>»`).
+     * Якщо самої збірки вже немає або в неї не було компонентів —
+     * відповідне повідомлення в errorMessage.
+     */
+    fun repeatBundle(bundleId: String) {
+        viewModelScope.launch {
+            val original = bundleDao.getById(bundleId)
+            val originalComponents = bundleDao.getComponentsForBundle(bundleId)
+            if (original == null || originalComponents.isEmpty()) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Не вдалося завантажити збірку для повторення"
+                )
+                return@launch
+            }
+
+            // Поточні залишки на складі для перевірки доступності компонентів.
+            // `productsInStock` уже містить наявні товари (без збірок) — беремо їх
+            // зі стейту, який оновлюється `observeProductsInStock()`.
+            val stockByCatalog = _uiState.value.productsInStock.associateBy { it.catalogId }
+
+            val drafts = mutableListOf<BundleComponentDraft>()
+            for (component in originalComponents) {
+                val inStock = stockByCatalog[component.componentCatalogId]
+                val name = inStock?.name?.ifBlank { component.componentCatalogId }
+                    ?: component.componentCatalogId
+                val available = inStock?.currentStock ?: 0
+                if (available < component.quantity) {
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Не вистачає на складі: $name ${component.quantity}/$available"
+                    )
+                    return@launch
+                }
+                drafts += BundleComponentDraft(
+                    catalogId = component.componentCatalogId,
+                    name = name,
+                    quantity = component.quantity,
+                    // Використовуємо ПОТОЧНУ середню закупочну ціну, а не ціну з
+                    // моменту створення оригіналу — собівартість/ціна на полиці
+                    // могли змінитися відтоді.
+                    unitCost = inStock?.avgPurchasePrice ?: component.unitCost,
+                    availableInStock = available
+                )
+            }
+
+            val suggestedPriceText = if (original.suggestedPrice > 0.0) {
+                // Прибираємо зайвий ".0", якщо ціна ціла.
+                val price = original.suggestedPrice
+                if (price % 1.0 == 0.0) price.toLong().toString() else price.toString()
+            } else ""
+
+            _uiState.value = _uiState.value.copy(
+                showCreator = true,
+                draftName = original.name,
+                draftComponents = drafts,
+                draftSuggestedPrice = suggestedPriceText,
+                draftComment = original.comment,
+                errorMessage = ""
+            )
+        }
+    }
+
+    fun clearErrorMessage() {
+        if (_uiState.value.errorMessage.isNotBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "")
+        }
+    }
+
+    /**
      * Розібрати збірку назад на компоненти. Атомарно видаляє «слід» збірки в
      * БД (Purchase + всі Writeoff + Bundle + BundleComponent + Product),
      * через що SQL-розрахунок залишку повертає компоненти на склад.

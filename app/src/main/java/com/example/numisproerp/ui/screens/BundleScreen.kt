@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Remove
@@ -41,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,6 +105,16 @@ fun BundleScreen(
         "Збірку не знайдено.",
         "Bundle not found."
     )
+
+    // Показуємо Toast, якщо `repeatBundle` фейлить (напр. не вистачає складу) —
+    // в цьому випадку діалог створення НЕ відкривається (вже всередині нього
+    // errorMessage відображається як рядок). Очищуємо errorMessage після показу.
+    LaunchedEffect(uiState.errorMessage, uiState.showCreator) {
+        if (uiState.errorMessage.isNotBlank() && !uiState.showCreator) {
+            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_LONG).show()
+            viewModel.clearErrorMessage()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -167,7 +179,8 @@ fun BundleScreen(
                         BundleCard(
                             b = b,
                             onDelete = { bundleToDelete = b },
-                            onDisassemble = { bundleToDisassemble = b }
+                            onDisassemble = { bundleToDisassemble = b },
+                            onRepeat = { viewModel.repeatBundle(b.bundleId) }
                         )
                     }
                 }
@@ -271,7 +284,8 @@ fun BundleScreen(
 private fun BundleCard(
     b: BundleWithSales,
     onDelete: () -> Unit,
-    onDisassemble: () -> Unit
+    onDisassemble: () -> Unit,
+    onRepeat: () -> Unit
 ) {
     val df = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
     val unitCost = b.totalCost
@@ -298,6 +312,14 @@ private fun BundleCard(
                         text = tr("Складено: ", "Assembled: ") + df.format(Date(b.assembledDate)),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                IconButton(onClick = onRepeat, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = tr("Повторити", "Repeat"),
+                        modifier = Modifier.size(18.dp),
+                        tint = AccentBlue
                     )
                 }
                 IconButton(
