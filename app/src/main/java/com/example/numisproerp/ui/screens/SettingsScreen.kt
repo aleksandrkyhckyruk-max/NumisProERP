@@ -802,14 +802,23 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
     // Montserrat, Inter, Lora, Playfair Display, Poppins, Nunito, Open Sans).
     // Системні залишаємо як швидкі/легкі опції без мережі.
     data class FamilyEntry(val key: String, val display: String)
-    val families: List<FamilyEntry> = buildList {
-        add(FamilyEntry("system", "System"))
-        add(FamilyEntry("sans-serif", "Sans-serif"))
-        add(FamilyEntry("serif", "Serif"))
-        add(FamilyEntry("monospace", "Monospace"))
-        com.numisproerp.ui.theme.GoogleFontOptions.forEach { option ->
-            add(FamilyEntry(option.key, option.displayName))
+    val families: List<FamilyEntry> = remember {
+        buildList {
+            add(FamilyEntry("system", "System"))
+            add(FamilyEntry("sans-serif", "Sans-serif"))
+            add(FamilyEntry("serif", "Serif"))
+            add(FamilyEntry("monospace", "Monospace"))
+            com.numisproerp.ui.theme.GoogleFontOptions.forEach { option ->
+                add(FamilyEntry(option.key, option.displayName))
+            }
         }
+    }
+    // Кешуємо FontFamily для кожного ключа: інакше `fontFamilyOf()` на кожній
+    // рекомпозиції створював би нові `Font` обʼєкти (×4 ваги × 8 Google Fonts),
+    // що змушувало б Compose перерезолвити завантажувані шрифти. Аналогічний
+    // патерн застосовано в [Theme.kt:211].
+    val familyFonts = remember(families) {
+        families.associate { it.key to com.numisproerp.ui.theme.fontFamilyOf(it.key) }
     }
     val colors = listOf(
         "" to tr("За замовчуванням", "Default"),
@@ -856,7 +865,8 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
                             text = entry.display,
                             modifier = Modifier.weight(1f),
                             fontSize = 15.sp,
-                            fontFamily = com.numisproerp.ui.theme.fontFamilyOf(entry.key)
+                            fontFamily = familyFonts[entry.key]
+                                ?: androidx.compose.ui.text.font.FontFamily.Default
                         )
                         RadioButton(
                             selected = fontFamily == entry.key,
@@ -956,10 +966,13 @@ private fun TileIconsDialog(
                             ..SettingsManager.MAX_TILE_ICON_SIZE.toFloat(),
                     steps = (SettingsManager.MAX_TILE_ICON_SIZE - SettingsManager.MIN_TILE_ICON_SIZE) / 4 - 1
                 )
+                // Підказка з фактичним дефолтом, щоб не розходитися з
+                // [SettingsManager.DEFAULT_TILE_ICON_SIZE] у майбутньому.
+                val defaultIconDp = SettingsManager.DEFAULT_TILE_ICON_SIZE
                 Text(
                     tr(
-                        "Стандарт — 68dp. Збільшіть, щоб ваші фото на плитках виглядали більшими.",
-                        "Default — 68dp. Increase if your tile photos look too small."
+                        "Стандарт — ${defaultIconDp}dp. Збільшіть, щоб ваші фото на плитках виглядали більшими.",
+                        "Default — ${defaultIconDp}dp. Increase if your tile photos look too small."
                     ),
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
