@@ -14,10 +14,15 @@ import com.numisproerp.data.entities.Writeoff
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.poi.ss.usermodel.WorkbookFactory
+import java.io.BufferedInputStream
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.zip.ZipInputStream
 
 class ExcelImporter(
     private val database: AppDatabase
@@ -77,8 +82,31 @@ class ExcelImporter(
     suspend fun importFromUri(context: Context, uri: Uri, productsOnly: Boolean = false): ImportResult {
         return withContext(Dispatchers.IO) {
             try {
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    return@withContext importFromInputStream(inputStream, productsOnly)
+                context.contentResolver.openInputStream(uri)?.use { rawStream ->
+                    val buffered = BufferedInputStream(rawStream)
+                    // Самоповідомлення ZIP за магічним байтами 'PK\x03\x04'.
+                    // ZIP-бекапи містять `database.xlsx` + `photos/*`, чисті .xlsx якраз
+                    // теж є ZIP (в сенсі формату), але в них всередині нема файлу `database.xlsx`.
+                    // Тому ми робимо єдиний прохід ZIP і якщо є `database.xlsx` — користуємо його,
+                    // інакше розгортаємо як звичайний кіпії .xlsx через WorkbookFactory.
+                    buffered.mark(8)
+                    val sig = ByteArray(4)
+                    val read = buffered.read(sig)
+                    buffered.reset()
+                    val isZipMagic = read == 4 && sig[0] == 0x50.toByte() && sig[1] == 0x4B.toByte() &&
+                            sig[2] == 0x03.toByte() && sig[3] == 0x04.toByte()
+
+                    if (isZipMagic) {
+                        // Спробуємо знайти `database.xlsx`; якщо розпакуємо фото, ретурн мапу
+                        // (відносний_шлях в ZIP -> новий_абсолютний_шлях на диску).
+                        val extracted = tryExtractZipBackup(context, buffered)
+                        if (extracted != null) {
+                            return@withContext ByteArrayInputStream(extracted.workbookBytes).use { wbStream ->
+                                importFromInputStream(wbStream, productsOnly, extracted.photoPathRemap)
+                            }
+                        }
+                    }
+                    return@withContext importFromInputStream(buffered, productsOnly, emptyMap())
                 } ?: ImportResult(false, "Не вдалося відкрити файл")
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -87,9 +115,64 @@ class ExcelImporter(
         }
     }
 
+    /**
+     * Результат розпакування ZIP-бекапу:
+     *  - `workbookBytes` — байти `database.xlsx`
+     *  - `photoPathRemap` — мапа `photos/<safe>` -> абсолютний шлях, куди розпаковано
+     *    фото на цьому пристрої (в `filesDir/imported_photos/`).
+     */
+    private data class ZipExtractResult(
+        val workbookBytes: ByteArray,
+        val photoPathRemap: Map<String, String>
+    )
+
+    /**
+     * Розпаковує ZIP-бекап. Повертає `null`, якщо в ньому нема `database.xlsx`
+     * (тобто це просто .xlsx з ZIP-магічними байтами — обробимо його в звичайній гілці).
+     */
+    private fun tryExtractZipBackup(context: Context, stream: InputStream): ZipExtractResult? {
+        val photosDir = File(context.filesDir, "imported_photos").apply { mkdirs() }
+        val remap = mutableMapOf<String, String>()
+        var workbookBytes: ByteArray? = null
+
+        ZipInputStream(stream).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                val name = entry.name
+                if (!entry.isDirectory && name == "database.xlsx") {
+                    workbookBytes = zip.readBytes()
+                } else if (!entry.isDirectory && name.startsWith("photos/") && name.length > "photos/".length) {
+                    val safeName = name.substringAfter("photos/").substringAfterLast('/')
+                    val outFile = File(photosDir, safeName)
+                    FileOutputStream(outFile).use { out -> zip.copyTo(out) }
+                    remap[name] = outFile.absolutePath
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+
+        val wb = workbookBytes ?: return null
+        return ZipExtractResult(wb, remap)
+    }
+
+    /**
+     * Якщо значення комірки виглядає як відносний шлях у ZIP-бекапі (`photos/...`)
+     * і у нас є мапа розпакованих фото — повертаємо абсолютний шлях нового місця.
+     * Якщо мапи нема або ключ не знайдено — повертаємо вхідне значення без змін
+     * (це або абсолютний шлях зі старого .xlsx-бекапу, або просто відсутнє фото).
+     */
+    private fun remapPhoto(value: String, remap: Map<String, String>): String {
+        if (remap.isEmpty()) return value
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) return value
+        return remap[trimmed] ?: value
+    }
+
     private suspend fun importFromInputStream(
         inputStream: InputStream,
-        productsOnly: Boolean = false
+        productsOnly: Boolean = false,
+        photoPathRemap: Map<String, String> = emptyMap()
     ): ImportResult {
         var productsCount = 0
         var productsAutoIdCount = 0
@@ -135,11 +218,11 @@ class ExcelImporter(
                         val category = row.getCell(5)?.toString() ?: ""
                         val issueDate = row.getCell(6)?.toString() ?: ""
                         val quality = row.getCell(7)?.toString() ?: ""
-                        val photoPath = row.getCell(8)?.toString() ?: ""
+                        val photoPath = remapPhoto(row.getCell(8)?.toString() ?: "", photoPathRemap)
                         // Розширений експорт (колонки 9-18) додано для підтримки
                         // ручно доданих товарів. Старі експорти не мають цих
                         // колонок — fall-back на порожній рядок / 0.0 / false.
-                        val photoPathBack = row.getCell(9)?.toString() ?: ""
+                        val photoPathBack = remapPhoto(row.getCell(9)?.toString() ?: "", photoPathRemap)
                         val diameter = row.getCell(10)?.toString() ?: ""
                         val weight = row.getCell(11)?.toString() ?: ""
                         val mintageAnnounced = row.getCell(12)?.toString() ?: ""
@@ -469,7 +552,7 @@ class ExcelImporter(
                         estimatedValue = row.getCell(8)?.toString()?.toDoubleOrNull() ?: 0.0,
                         dateAdded = dateAdded,
                         description = row.getCell(10)?.toString() ?: "",
-                        photoPath = row.getCell(11)?.toString() ?: ""
+                        photoPath = remapPhoto(row.getCell(11)?.toString() ?: "", photoPathRemap)
                     )
                     items.add(item)
                 }

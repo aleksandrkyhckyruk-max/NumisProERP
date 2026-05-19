@@ -2,6 +2,7 @@ package com.numisproerp.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,8 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.outlined.LocalAtm
 import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -390,7 +393,30 @@ fun DetailsScreen(
                                 )
                             }
                         }
-                        if (type == "profit" || type == "balance") {
+                        if (type == "profit") {
+                            // Обєднуємо позиції одного чеку (один клієнт + один той же
+                            // `date` як `System.currentTimeMillis()` на момент оформлення) в одну
+                            // карточку. Якщо клієнт в одному чеку купив 10 позицій — буде одна
+                            // відкриваювана карточка з підсумком і деталями всередині.
+                            val receipts: List<Pair<String, List<Sale>>> = filteredSales
+                                .groupBy { "${it.clientId}|${it.date}" }
+                                .toList()
+                                .sortedByDescending { it.second.maxOfOrNull { s -> s.date } ?: 0L }
+                            items(
+                                items = receipts,
+                                key = { it.first }
+                            ) { (_, salesInReceipt) ->
+                                ReceiptDetailItem(
+                                    sales = salesInReceipt,
+                                    clientName = clientNames[salesInReceipt.first().clientId] ?: unknownClientText,
+                                    productNames = productNames,
+                                    unknownProductText = unknownProductText,
+                                    pcsLabel = pcsLabel,
+                                    saleLabel = saleLabel
+                                )
+                            }
+                        }
+                        if (type == "balance") {
                             items(filteredSales) { sale ->
                                 TransactionDetailItem(
                                     date = sale.date,
@@ -480,6 +506,112 @@ fun DetailsSortMenu(
             text = { Text(tr("Сума ↑", "Amount ↑") + if (current == DetailsSort.AMOUNT_ASC) "  ✓" else "") },
             onClick = { onSelect(DetailsSort.AMOUNT_ASC) }
         )
+    }
+}
+
+/**
+ * Картка одного чеку у звіті «Прибуток». Об'єднує всі позиції одного продажу
+ * (один клієнт + однаковий `Sale.date` = одна операція оформлення) в один елемент
+ * списку — щоб 10 позицій з одного чеку не показувалися як 10 окремих рядків.
+ *
+ * Стиснутий вигляд: дата, ім'я клієнта, кількість позицій, загальна сума, прибуток.
+ * При натисканні розгортається — показуємо назву і кількість кожної позиції з ціною.
+ */
+@Composable
+fun ReceiptDetailItem(
+    sales: List<Sale>,
+    clientName: String,
+    productNames: Map<String, String>,
+    unknownProductText: String,
+    pcsLabel: String,
+    saleLabel: String
+) {
+    if (sales.isEmpty()) return
+    var expanded by remember(sales.first().saleId) { mutableStateOf(false) }
+    val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+    val firstDate = sales.first().date
+    val totalAmount = sales.sumOf { it.totalAmount }
+    val totalProfit = sales.sumOf { it.netProfit }
+    val totalQty = sales.sumOf { it.quantity }
+    val itemsCount = sales.size
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IOSIconChip(
+                    icon = Icons.Outlined.ShoppingCart,
+                    tint = AccentGreen
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = clientName,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        maxLines = 2
+                    )
+                    Text(
+                        text = "${dateFormat.format(Date(firstDate))} • $itemsCount " +
+                            tr("поз.", "items") +
+                            " • $totalQty $pcsLabel",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "+${String.format("%,.2f", totalAmount)} ₴",
+                        fontWeight = FontWeight.Bold,
+                        color = AccentGreen
+                    )
+                    Text(
+                        text = "${tr("Прибуток", "Profit")}: ${String.format("%,.2f", totalProfit)} ₴",
+                        fontSize = 11.sp,
+                        color = if (totalProfit >= 0) AccentGreen else MaterialTheme.colorScheme.error
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                    contentDescription = if (expanded) tr("Згорнути", "Collapse") else tr("Розгорнути", "Expand"),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(top = 10.dp, start = 4.dp)) {
+                    sales.forEachIndexed { idx, sale ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${idx + 1}. ${productNames[sale.catalogId] ?: unknownProductText}",
+                                modifier = Modifier.weight(1f),
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                text = "${sale.quantity} $pcsLabel × ${String.format("%,.2f", sale.pricePerUnit)} = " +
+                                    "${String.format("%,.2f", sale.totalAmount)} ₴",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -303,6 +303,126 @@ class SettingsManager @Inject constructor(
             prefs.edit().putInt(KEY_EMBLEM_SIZE, clamped).apply()
         }
 
+    // Позиція емблеми по горизонталі (dp). 0 — по замовчуванню (зліва).
+    // Позитивні значення зсувають емблему праворуч, негативні — ліворуч.
+    private val _emblemOffsetX: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_EMBLEM_OFFSET_X, 0))
+
+    val emblemOffsetXState: MutableState<Int>
+        get() = _emblemOffsetX
+
+    var emblemOffsetX: Int
+        get() = _emblemOffsetX.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_EMBLEM_OFFSET, MAX_EMBLEM_OFFSET)
+            _emblemOffsetX.value = clamped
+            prefs.edit().putInt(KEY_EMBLEM_OFFSET_X, clamped).apply()
+        }
+
+    // Позиція емблеми по вертикалі (dp). 0 — по замовчуванню.
+    private val _emblemOffsetY: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_EMBLEM_OFFSET_Y, 0))
+
+    val emblemOffsetYState: MutableState<Int>
+        get() = _emblemOffsetY
+
+    var emblemOffsetY: Int
+        get() = _emblemOffsetY.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_EMBLEM_OFFSET, MAX_EMBLEM_OFFSET)
+            _emblemOffsetY.value = clamped
+            prefs.edit().putInt(KEY_EMBLEM_OFFSET_Y, clamped).apply()
+        }
+
+    // Поля користувацької назви проєкту в шапці Dashboard та розміру шрифту.
+    // Порожній рядок — використовується предвизначена назва теми (OlegSmile / NumisProERP).
+    private val _dashboardTitle: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_DASHBOARD_TITLE, "") ?: "")
+
+    val dashboardTitleState: MutableState<String>
+        get() = _dashboardTitle
+
+    var dashboardTitle: String
+        get() = _dashboardTitle.value
+        set(value) {
+            _dashboardTitle.value = value
+            prefs.edit().putString(KEY_DASHBOARD_TITLE, value).apply()
+        }
+
+    private val _dashboardTitleSize: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_DASHBOARD_TITLE_SIZE, DEFAULT_DASHBOARD_TITLE_SIZE))
+
+    val dashboardTitleSizeState: MutableState<Int>
+        get() = _dashboardTitleSize
+
+    var dashboardTitleSize: Int
+        get() = _dashboardTitleSize.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_DASHBOARD_TITLE_SIZE, MAX_DASHBOARD_TITLE_SIZE)
+            _dashboardTitleSize.value = clamped
+            prefs.edit().putInt(KEY_DASHBOARD_TITLE_SIZE, clamped).apply()
+        }
+
+    // ==================== СТИЛЬ ЗАГОЛОВКІВ ТА ПІДПИСІВ НА ДАШБОРДІ ====================
+    // Дозволяє змінювати розмір і колір заголовків "Швидкий доступ"/"Останні операції"
+    // та підписів плиток (Закупівля, Склад тощо), щоб на будь-якому фоні
+    // (включаючи світлі фони) текст був читко видно.
+    // Порожній hex — використовується колір з теми (як раніше).
+
+    private val _dashboardHeaderFontSize: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_DASHBOARD_HEADER_FONT_SIZE, DEFAULT_DASHBOARD_HEADER_FONT_SIZE))
+
+    val dashboardHeaderFontSizeState: MutableState<Int>
+        get() = _dashboardHeaderFontSize
+
+    var dashboardHeaderFontSize: Int
+        get() = _dashboardHeaderFontSize.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_DASHBOARD_HEADER_FONT_SIZE, MAX_DASHBOARD_HEADER_FONT_SIZE)
+            _dashboardHeaderFontSize.value = clamped
+            prefs.edit().putInt(KEY_DASHBOARD_HEADER_FONT_SIZE, clamped).apply()
+        }
+
+    private val _dashboardHeaderColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_DASHBOARD_HEADER_COLOR, "") ?: "")
+
+    val dashboardHeaderColorState: MutableState<String>
+        get() = _dashboardHeaderColor
+
+    var dashboardHeaderColor: String
+        get() = _dashboardHeaderColor.value
+        set(value) {
+            _dashboardHeaderColor.value = value
+            prefs.edit().putString(KEY_DASHBOARD_HEADER_COLOR, value).apply()
+        }
+
+    private val _tileLabelFontSize: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_TILE_LABEL_FONT_SIZE, DEFAULT_TILE_LABEL_FONT_SIZE))
+
+    val tileLabelFontSizeState: MutableState<Int>
+        get() = _tileLabelFontSize
+
+    var tileLabelFontSize: Int
+        get() = _tileLabelFontSize.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_TILE_LABEL_FONT_SIZE, MAX_TILE_LABEL_FONT_SIZE)
+            _tileLabelFontSize.value = clamped
+            prefs.edit().putInt(KEY_TILE_LABEL_FONT_SIZE, clamped).apply()
+        }
+
+    private val _tileLabelColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_TILE_LABEL_COLOR, "") ?: "")
+
+    val tileLabelColorState: MutableState<String>
+        get() = _tileLabelColor
+
+    var tileLabelColor: String
+        get() = _tileLabelColor.value
+        set(value) {
+            _tileLabelColor.value = value
+            prefs.edit().putString(KEY_TILE_LABEL_COLOR, value).apply()
+        }
+
     // ==================== ІНФОРМАЦІЙНІ КАРТКИ НА DASHBOARD ====================
     // Колір фону + прозорість для карток зведення (баланс, місячні стати, останні операції).
 
@@ -488,6 +608,14 @@ class SettingsManager @Inject constructor(
         private const val KEY_TILE_BG_COLOR = "tile_bg_color"
         private const val KEY_EMBLEM_IMAGE_PATH = "emblem_image_path"
         private const val KEY_EMBLEM_SIZE = "emblem_size"
+        private const val KEY_EMBLEM_OFFSET_X = "emblem_offset_x"
+        private const val KEY_EMBLEM_OFFSET_Y = "emblem_offset_y"
+        private const val KEY_DASHBOARD_TITLE = "dashboard_title"
+        private const val KEY_DASHBOARD_TITLE_SIZE = "dashboard_title_size"
+        private const val KEY_DASHBOARD_HEADER_FONT_SIZE = "dashboard_header_font_size"
+        private const val KEY_DASHBOARD_HEADER_COLOR = "dashboard_header_color"
+        private const val KEY_TILE_LABEL_FONT_SIZE = "tile_label_font_size"
+        private const val KEY_TILE_LABEL_COLOR = "tile_label_color"
         private const val KEY_INFO_CARD_BG_COLOR = "info_card_bg_color"
         private const val KEY_INFO_CARD_BG_ALPHA = "info_card_bg_alpha"
         private const val KEY_TOP_BAR_COLOR = "top_bar_color"
@@ -522,6 +650,22 @@ class SettingsManager @Inject constructor(
         const val DEFAULT_EMBLEM_SIZE = 72
         const val MIN_EMBLEM_SIZE = 40
         const val MAX_EMBLEM_SIZE = 160
+        // Межі зсуву емблеми в dp. Дозволяє користувачу вивести емблему поверх
+        // картки балансу / зробити її як водяний знак.
+        const val MIN_EMBLEM_OFFSET = -200
+        const val MAX_EMBLEM_OFFSET = 200
+        // Назва "NumisProERP" в шапці за замовчуванням рендерилася на 26.sp.
+        const val DEFAULT_DASHBOARD_TITLE_SIZE = 26
+        const val MIN_DASHBOARD_TITLE_SIZE = 14
+        const val MAX_DASHBOARD_TITLE_SIZE = 40
+        // Стандартний розмір заголовків "Швидкий доступ" / "Останні операції" — 18.sp.
+        const val DEFAULT_DASHBOARD_HEADER_FONT_SIZE = 18
+        const val MIN_DASHBOARD_HEADER_FONT_SIZE = 12
+        const val MAX_DASHBOARD_HEADER_FONT_SIZE = 28
+        // Підпис під плиткою швидкого доступу за замовчуванням — 10.sp.
+        const val DEFAULT_TILE_LABEL_FONT_SIZE = 10
+        const val MIN_TILE_LABEL_FONT_SIZE = 8
+        const val MAX_TILE_LABEL_FONT_SIZE = 18
         // 1.0 = непрозорі картки (старий вигляд).
         const val DEFAULT_INFO_CARD_BG_ALPHA = 1.0f
         // Межі «освітлення/затемнення» для барів. -0.5 = повністю чорний,

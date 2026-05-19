@@ -154,6 +154,26 @@ fun ProductsScreen(
                 shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
             )
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Помітна кнопка ручного додавання: користувачі не завжди помічають
+            // FAB у нижньому правому куті, тому дублюємо її на видному місці
+            // одразу під пошуком. Обидві відкривають той самий діалог.
+            Button(
+                onClick = { showAddDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = tr("Додати товар вручну", "Add product manually"),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
             if (uiState.categories.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

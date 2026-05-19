@@ -147,6 +147,14 @@ class MainActivity : ComponentActivity() {
             val tileBackgroundColor by settingsManager.tileBackgroundColorState
             val emblemImagePath by settingsManager.emblemImagePathState
             val emblemSize by settingsManager.emblemSizeState
+            val emblemOffsetX by settingsManager.emblemOffsetXState
+            val emblemOffsetY by settingsManager.emblemOffsetYState
+            val dashboardTitle by settingsManager.dashboardTitleState
+            val dashboardTitleSize by settingsManager.dashboardTitleSizeState
+            val dashboardHeaderFontSize by settingsManager.dashboardHeaderFontSizeState
+            val dashboardHeaderColor by settingsManager.dashboardHeaderColorState
+            val tileLabelFontSize by settingsManager.tileLabelFontSizeState
+            val tileLabelColor by settingsManager.tileLabelColorState
             val infoCardBackgroundColor by settingsManager.infoCardBackgroundColorState
             val infoCardBackgroundAlpha by settingsManager.infoCardBackgroundAlphaState
             val topBarColor by settingsManager.topBarColorState
@@ -171,6 +179,14 @@ class MainActivity : ComponentActivity() {
                 tileBackgroundColorHex = tileBackgroundColor,
                 emblemImagePath = emblemImagePath,
                 emblemSize = emblemSize,
+                emblemOffsetX = emblemOffsetX,
+                emblemOffsetY = emblemOffsetY,
+                dashboardTitle = dashboardTitle,
+                dashboardTitleSize = dashboardTitleSize,
+                dashboardHeaderFontSize = dashboardHeaderFontSize,
+                dashboardHeaderColorHex = dashboardHeaderColor,
+                tileLabelFontSize = tileLabelFontSize,
+                tileLabelColorHex = tileLabelColor,
                 infoCardBackgroundColorHex = infoCardBackgroundColor,
                 infoCardBackgroundAlpha = infoCardBackgroundAlpha,
                 topBarColorHex = topBarColor,

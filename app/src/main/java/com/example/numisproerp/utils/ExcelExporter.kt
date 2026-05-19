@@ -7,11 +7,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class ExcelExporter(
     private val database: AppDatabase
@@ -26,35 +32,7 @@ class ExcelExporter(
     suspend fun exportToExcelDefault(context: Context): ExportResult {
         return withContext(Dispatchers.IO) {
             try {
-                val workbook = XSSFWorkbook()
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-
-                // Аркуш "Каталог Товарів"
-                createProductsSheet(workbook, dateFormat)
-
-                // Аркуш "Клієнти"
-                createClientsSheet(workbook)
-
-                // Аркуш "Постачальники"
-                createSuppliersSheet(workbook)
-
-                // Аркуш "Закупівлі"
-                createPurchasesSheet(workbook, dateFormat)
-
-                // Аркуш "Продажі"
-                createSalesSheet(workbook, dateFormat)
-
-                // Аркуш "Витрати"
-                createExpensesSheet(workbook, dateFormat)
-
-                // Аркуш "Склад" — снапшот залишків (за п. 3 ТЗ)
-                createStockSheet(workbook)
-
-                // Аркуш "Списання" — повний журнал списань (за п. 8 ТЗ)
-                createWriteoffsSheet(workbook, dateFormat)
-
-                // Аркуш "Моя колекція" — товари з власної колекції (за п. 12-13 ТЗ)
-                createCollectionSheet(workbook, dateFormat)
+                val workbook = buildFullWorkbook(photoPathMapper = { it })
 
                 val fileName = "NumisProERP_Backup_${System.currentTimeMillis()}.xlsx"
                 val folder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -77,7 +55,138 @@ class ExcelExporter(
         }
     }
 
-    private suspend fun createProductsSheet(workbook: XSSFWorkbook, dateFormat: SimpleDateFormat) {
+    /**
+     * Розширений експорт: ZIP-архів, який містить `database.xlsx`
+     * + папку `photos/` з фотографіями товарів і товарів колекції.
+     * Оригінальні абсолютні шляхи в форматі `/data/user/0/.../files/...` при
+     * вивантаженні звичайної .xlsx-кіпії на іншому пристрої вже не відповідають
+     * реальним файлам. У ZIP-бекапі ми зберігаємо файли поза xlsx і в xlsx
+     * записуємо відносний шлях (`photos/<safe>`), який під час імпорту
+     * [ExcelImporter] правильно переведе в новий абсолютний шлях.
+     * Старі чисті .xlsx залишаються зворотно сумісними для імпорту.
+     */
+    suspend fun exportToZipDefault(context: Context): ExportResult {
+        return withContext(Dispatchers.IO) {
+            try {
+                // 1) Збираємо всі унікальні фотошляхи + будуємо мапу (ориг. шлях -> photos/<safe>).
+                val photoMap = collectPhotoMapping()
+
+                // 2) Будуємо workbook з переписаними шляхами на відносні всередині ZIP.
+                val workbook = buildFullWorkbook(photoPathMapper = { original ->
+                    photoMap[original] ?: original
+                })
+                val workbookBytes = ByteArrayOutputStream().use { baos ->
+                    workbook.write(baos)
+                    workbook.close()
+                    baos.toByteArray()
+                }
+
+                // 3) Пишемо ZIP у Downloads.
+                val fileName = "NumisProERP_Backup_${System.currentTimeMillis()}.zip"
+                val folder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!folder.exists()) folder.mkdirs()
+                val outFile = File(folder, fileName)
+
+                ZipOutputStream(BufferedOutputStream(FileOutputStream(outFile))).use { zip ->
+                    // database.xlsx
+                    zip.putNextEntry(ZipEntry("database.xlsx"))
+                    zip.write(workbookBytes)
+                    zip.closeEntry()
+
+                    // photos/<safe>
+                    photoMap.forEach { (originalPath, relativePath) ->
+                        try {
+                            val src = File(originalPath)
+                            if (!src.exists() || !src.canRead()) return@forEach
+                            zip.putNextEntry(ZipEntry(relativePath))
+                            FileInputStream(src).use { it.copyTo(zip) }
+                            zip.closeEntry()
+                        } catch (_: Exception) {
+                            // Пропускаємо одне фото якщо недоступне; решта бекапу залишається валідним.
+                        }
+                    }
+                }
+
+                ExportResult(true, "Експорт завершено (ZIP з фото)", outFile.absolutePath)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                ExportResult(false, "Помилка експорту ZIP: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Будує повний XSSFWorkbook з усіма аркушами. `photoPathMapper` дозволяє
+     * переписувати всі комірки з фотошляхами перед записом — використовується
+     * в ZIP-експорті для переведення абсолютних шляхів у відносні.
+     */
+    private suspend fun buildFullWorkbook(
+        photoPathMapper: (String) -> String
+    ): XSSFWorkbook {
+        val workbook = XSSFWorkbook()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+        createProductsSheet(workbook, dateFormat, photoPathMapper)
+        createClientsSheet(workbook)
+        createSuppliersSheet(workbook)
+        createPurchasesSheet(workbook, dateFormat)
+        createSalesSheet(workbook, dateFormat)
+        createExpensesSheet(workbook, dateFormat)
+        createStockSheet(workbook)
+        createWriteoffsSheet(workbook, dateFormat)
+        createCollectionSheet(workbook, dateFormat, photoPathMapper)
+        return workbook
+    }
+
+    /**
+     * Складає мапу всіх унікальних фотошляхів з бази (товари +
+     * колекція) в форматі: оригінальний_абсолютний_шлях -> photos/<safe_name>.
+     * `safe_name` = MD5(шлях)[..12] + "_" + оригінальне_імя — резистентно до
+     * колізій в різних товарів, але детерміновано при рекспорті.
+     */
+    private suspend fun collectPhotoMapping(): Map<String, String> {
+        val map = linkedMapOf<String, String>()
+        val taken = mutableSetOf<String>()
+
+        fun addPath(path: String?) {
+            if (path.isNullOrBlank()) return
+            if (map.containsKey(path)) return
+            val src = try { File(path) } catch (_: Exception) { return }
+            // Додаємо до мапи навіть якщо файл не існує — їх просто не буде в ZIP,
+            // але відповідні комірки все одно будуть переписані на відносний шлях — імпортер
+            // просто побачить, що файла нема, і поверне порожній рядок.
+            val baseName = src.name.ifBlank { "photo" }
+            val digest = MessageDigest.getInstance("MD5")
+                .digest(path.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+                .substring(0, 12)
+            var safe = "photos/${digest}_${baseName}"
+            // Додаємо суфікс якщо якимось дивом вже взято (два різних оригінали
+            // з однаковим MD5-префіксом і іменем).
+            var suffix = 1
+            while (taken.contains(safe)) {
+                safe = "photos/${digest}_${suffix}_${baseName}"
+                suffix++
+            }
+            taken.add(safe)
+            map[path] = safe
+        }
+
+        database.productDao().getAllProductsSync().forEach { product ->
+            addPath(product.photoPath)
+            addPath(product.photoPathBack)
+        }
+        database.collectionItemDao().getAllSync().forEach { item ->
+            addPath(item.photoPath)
+        }
+        return map
+    }
+
+    private suspend fun createProductsSheet(
+        workbook: XSSFWorkbook,
+        dateFormat: SimpleDateFormat,
+        photoPathMapper: (String) -> String = { it }
+    ) {
         val sheet = workbook.createSheet("Каталог Товарів")
         val header = sheet.createRow(0)
         header.createCell(0).setCellValue("CatalogID")
@@ -114,8 +223,8 @@ class ExcelExporter(
             row.createCell(5).setCellValue(product.category)
             row.createCell(6).setCellValue(product.issueDate)
             row.createCell(7).setCellValue(product.quality)
-            row.createCell(8).setCellValue(product.photoPath)
-            row.createCell(9).setCellValue(product.photoPathBack)
+            row.createCell(8).setCellValue(photoPathMapper(product.photoPath))
+            row.createCell(9).setCellValue(photoPathMapper(product.photoPathBack))
             row.createCell(10).setCellValue(product.diameter)
             row.createCell(11).setCellValue(product.weight)
             row.createCell(12).setCellValue(product.mintageAnnounced)
@@ -283,7 +392,11 @@ class ExcelExporter(
         }
     }
 
-    private suspend fun createCollectionSheet(workbook: XSSFWorkbook, dateFormat: SimpleDateFormat) {
+    private suspend fun createCollectionSheet(
+        workbook: XSSFWorkbook,
+        dateFormat: SimpleDateFormat,
+        photoPathMapper: (String) -> String = { it }
+    ) {
         val sheet = workbook.createSheet("Моя колекція")
         val header = sheet.createRow(0)
         header.createCell(0).setCellValue("CollectionID")
@@ -314,7 +427,7 @@ class ExcelExporter(
             row.createCell(8).setCellValue(item.estimatedValue)
             row.createCell(9).setCellValue(dateFormat.format(Date(item.dateAdded)))
             row.createCell(10).setCellValue(item.description)
-            row.createCell(11).setCellValue(item.photoPath)
+            row.createCell(11).setCellValue(photoPathMapper(item.photoPath))
             rowNum++
         }
     }

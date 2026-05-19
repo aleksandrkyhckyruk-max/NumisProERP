@@ -86,6 +86,50 @@ val LocalEmblemImagePath = compositionLocalOf { "" }
 val LocalEmblemSize = compositionLocalOf { SettingsManager.DEFAULT_EMBLEM_SIZE }
 
 /**
+ * Зсув емблеми по горизонталі у dp. Дозволяє користувачу переміщати емблему
+ * праворуч/ліворуч у шапці головного екрана; за замовчуванням 0 (без зсуву).
+ */
+val LocalEmblemOffsetX = compositionLocalOf { 0 }
+
+/**
+ * Зсув емблеми по вертикалі у dp.
+ */
+val LocalEmblemOffsetY = compositionLocalOf { 0 }
+
+/**
+ * Користувацький текст заголовка головного екрана. Порожній рядок — використовується
+ * заголовок теми за замовчуванням ("OlegSmile" / "NumisProERP").
+ */
+val LocalDashboardTitle = compositionLocalOf { "" }
+
+/**
+ * Розмір шрифту заголовка головного екрана у sp.
+ */
+val LocalDashboardTitleSize = compositionLocalOf { SettingsManager.DEFAULT_DASHBOARD_TITLE_SIZE }
+
+/**
+ * Розмір шрифту заголовків секцій Dashboard ("Швидкий доступ", "Останні операції") у sp.
+ */
+val LocalDashboardHeaderFontSize = compositionLocalOf { SettingsManager.DEFAULT_DASHBOARD_HEADER_FONT_SIZE }
+
+/**
+ * Колір заголовків секцій Dashboard у hex без `#`. Порожній рядок — використовується
+ * стандартний `onBackground` з теми.
+ */
+val LocalDashboardHeaderColor = compositionLocalOf { "" }
+
+/**
+ * Розмір шрифту підписів плиток швидкого доступу (Закупка, Склад тощо) у sp.
+ */
+val LocalTileLabelFontSize = compositionLocalOf { SettingsManager.DEFAULT_TILE_LABEL_FONT_SIZE }
+
+/**
+ * Колір підписів плиток у hex без `#`. Порожній рядок — використовується стандартний
+ * `onSurface` з теми.
+ */
+val LocalTileLabelColor = compositionLocalOf { "" }
+
+/**
  * Користувацький колір фону інформаційних карток Dashboard (баланс, місячні стати,
  * останні операції). Порожній рядок — використовується `colorScheme.surface` як раніше.
  */
