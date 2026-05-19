@@ -1107,7 +1107,8 @@ private fun TileIconsDialog(
             TileLabel("reports", "Звіти", "Reports"),
             TileLabel("suppliers", "Постачальники", "Suppliers"),
             TileLabel("expenses", "Витрати", "Expenses"),
-            TileLabel("collection", "Моя колекція", "Collection")
+            TileLabel("collection", "Моя колекція", "Collection"),
+            TileLabel("documents", "Документи", "Documents")
         )
     }
 

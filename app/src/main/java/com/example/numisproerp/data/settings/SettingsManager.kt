@@ -743,7 +743,7 @@ class SettingsManager @Inject constructor(
          */
         val TILE_IDS = listOf(
             "purchase", "sale", "stock", "clients",
-            "reports", "suppliers", "expenses", "collection"
+            "reports", "suppliers", "expenses", "collection", "documents"
         )
     }
 }
