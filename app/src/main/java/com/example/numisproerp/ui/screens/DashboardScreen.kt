@@ -67,6 +67,9 @@ import com.numisproerp.ui.theme.LocalAppTheme
 import com.numisproerp.ui.theme.LocalDashboardHeaderColor
 import com.numisproerp.ui.theme.LocalDashboardHeaderFontSize
 import com.numisproerp.ui.theme.LocalDashboardTitle
+import com.numisproerp.ui.theme.LocalDashboardTitleColor
+import com.numisproerp.ui.theme.LocalDashboardTitleOffsetX
+import com.numisproerp.ui.theme.LocalDashboardTitleOffsetY
 import com.numisproerp.ui.theme.LocalDashboardTitleSize
 import com.numisproerp.ui.theme.LocalEmblemImagePath
 import com.numisproerp.ui.theme.LocalEmblemOffsetX
@@ -122,6 +125,7 @@ fun DashboardScreen(
             onNavigateToSale = { navController.navigate(Screen.Sale.route) },
             onNavigateToExpenses = { navController.navigate(Screen.Expenses.route) },
             onNavigateToDocuments = { navController.navigate(Screen.MyCollection.route) },
+            onNavigateToDocumentsScreen = { navController.navigate(Screen.Documents.route) },
             onNavigateToSuppliers = { navController.navigate(Screen.Suppliers.route) },
             onNavigateToDetails = { type, title ->
                 navController.navigate("details/$type/$title")
@@ -140,6 +144,7 @@ fun DashboardContent(
     onNavigateToSale: () -> Unit,
     onNavigateToExpenses: () -> Unit,
     onNavigateToDocuments: () -> Unit,
+    onNavigateToDocumentsScreen: () -> Unit,
     onNavigateToSuppliers: () -> Unit,
     onNavigateToDetails: (String, String) -> Unit
 ) {
@@ -196,13 +201,16 @@ fun DashboardContent(
         }
 
         item {
-            QuickAccessRow(
+            QuickAccessGrid(
                 onPurchaseClick = onNavigateToPurchase,
                 onSaleClick = onNavigateToSale,
                 onStockClick = onNavigateToStock,
                 onClientsClick = onNavigateToClients,
                 onSuppliersClick = onNavigateToSuppliers,
-                onDocumentsClick = onNavigateToDocuments
+                onCollectionClick = onNavigateToDocuments,
+                onReportsClick = onNavigateToReports,
+                onExpensesClick = onNavigateToExpenses,
+                onDocumentsClick = onNavigateToDocumentsScreen
             )
         }
 
@@ -225,6 +233,9 @@ private fun DashboardHeader(currentDate: String) {
     val offsetY = LocalEmblemOffsetY.current.dp
     val userTitle = LocalDashboardTitle.current
     val titleSizeSp = LocalDashboardTitleSize.current.sp
+    val titleColorHex = LocalDashboardTitleColor.current
+    val titleOffsetX = LocalDashboardTitleOffsetX.current.dp
+    val titleOffsetY = LocalDashboardTitleOffsetY.current.dp
     if (theme == AppTheme.OLEG_SMILE_PREMIUM) {
         PremiumDashboardHeader(currentDate = currentDate)
         return
@@ -238,6 +249,8 @@ private fun DashboardHeader(currentDate: String) {
             else -> "NumisProERP"
         }
         val titleText = if (userTitle.isNotBlank()) userTitle else defaultTitleText
+        val resolvedTitleColor = parseHexColorOrNull(titleColorHex)
+            ?: MaterialTheme.colorScheme.primary
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -255,7 +268,8 @@ private fun DashboardHeader(currentDate: String) {
                     text = titleText,
                     fontSize = titleSizeSp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = resolvedTitleColor,
+                    modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
                 )
                 Text(
                     text = tr("NumisProERP — облік та каталогізація", "NumisProERP — accounting & catalog"),
@@ -272,12 +286,15 @@ private fun DashboardHeader(currentDate: String) {
         }
     } else {
         val titleText = if (userTitle.isNotBlank()) userTitle else "NumisProERP"
+        val resolvedTitleColor = parseHexColorOrNull(titleColorHex)
+            ?: MaterialTheme.colorScheme.primary
         Column {
             Text(
                 text = titleText,
                 fontSize = titleSizeSp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = resolvedTitleColor,
+                modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
             )
             Text(
                 text = tr("Облік та каталогізація", "Accounting & catalog"),
@@ -340,6 +357,11 @@ private fun PremiumDashboardHeader(currentDate: String) {
     val offsetY = LocalEmblemOffsetY.current.dp
     val userTitle = LocalDashboardTitle.current
     val titleSizeSp = LocalDashboardTitleSize.current.sp
+    val titleColorHex = LocalDashboardTitleColor.current
+    val titleOffsetX = LocalDashboardTitleOffsetX.current.dp
+    val titleOffsetY = LocalDashboardTitleOffsetY.current.dp
+    val userTitleColor = parseHexColorOrNull(titleColorHex)
+    val titleOffsetModifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -358,21 +380,25 @@ private fun PremiumDashboardHeader(currentDate: String) {
                     text = userTitle,
                     fontSize = titleSizeSp,
                     fontWeight = FontWeight.Bold,
-                    color = OlegPremiumTitleCoral
+                    color = userTitleColor ?: OlegPremiumTitleCoral,
+                    modifier = titleOffsetModifier
                 )
             } else {
-                Row(verticalAlignment = Alignment.Bottom) {
+                Row(
+                    modifier = titleOffsetModifier,
+                    verticalAlignment = Alignment.Bottom
+                ) {
                     Text(
                         text = "NumisPro",
                         fontSize = titleSizeSp,
                         fontWeight = FontWeight.Bold,
-                        color = OlegPremiumTitleCoral
+                        color = userTitleColor ?: OlegPremiumTitleCoral
                     )
                     Text(
                         text = "ERP",
                         fontSize = titleSizeSp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = userTitleColor ?: MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -492,103 +518,165 @@ fun SectionHeader(title: String) {
 }
 
 /**
- * Один ряд з 6 плиток швидкого доступу. Звіти та Витрати винесені в бічне
- * меню (для хованого доступу), щоб робочий стіл показував всі 6 основних операцій
- * в одному ряду.
+ * Сітка швидкого доступу 3×3 (9 плиток). Раніше показувався один ряд з 6 плиток,
+ * але на вузьких екранах вони не влазили в одну лінію. Тепер плитки рендеряться
+ * в три ряди по три, що дає рівне розміщення на будь-якій ширині та лишає
+ * місце для додаткових ярликів (Звіти / Витрати / Документи) прямо на головному
+ * робочому столі.
  *
- * Щоб 6 плиток влізали на вузьких екранах (від ~340dp ширини) — ми міряємо доступну
- * ширину через [BoxWithConstraints] і рахуємо оптимальний розмір плитки. Якщо
- * стандартних 80dp на плитку вистачає — вікриваємо без оверрайду. Інакше
- * передаємо `tileSizeOverride`, який примусово зменшує плитки для цього ряду.
+ * Розмір плитки розраховується через [BoxWithConstraints]: ділимо доступну ширину
+ * на 3 з урахуванням проміжків. Якщо стандартних 80dp на плитку вистачає — рендеримо
+ * без override (щоб не ломати користувацький розмір іконки з Налаштувань). Інакше —
+ * передаємо `tileSizeOverride`, що пропорційно зменшує плитку.
  */
 @Composable
-fun QuickAccessRow(
+fun QuickAccessGrid(
     onPurchaseClick: () -> Unit,
     onSaleClick: () -> Unit,
     onStockClick: () -> Unit,
     onClientsClick: () -> Unit,
     onSuppliersClick: () -> Unit,
+    onCollectionClick: () -> Unit,
+    onReportsClick: () -> Unit,
+    onExpensesClick: () -> Unit,
     onDocumentsClick: () -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val tileCount = 6
-        val spacingDp = 4f
+        val columns = 3
+        val spacingDp = 8f
         val rawAvailable = maxWidth.value
-        val perTile = ((rawAvailable - spacingDp * (tileCount - 1)) / tileCount).coerceAtLeast(40f)
+        val perTile = ((rawAvailable - spacingDp * (columns - 1)) / columns).coerceAtLeast(60f)
         val defaultSize = com.numisproerp.data.settings.SettingsManager.TILE_BOX_SIZE_DP.toFloat()
-        // Якщо стандартних 80dp вистачає — не перевизначаємо розмір, щоб не
-        // ломати користувацький вибір розміру іконки в Налаштуваннях.
+        // Якщо плитка більша за стандартну (80dp) — не перевизначаємо розмір,
+        // щоб користувацький слайдер "розмір іконки" продовжував працювати як раніше.
         val tileSizeOverride: Float? = if (perTile >= defaultSize) null else perTile
-        Row(
+
+        val rowModifier = Modifier.fillMaxWidth()
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            verticalArrangement = Arrangement.spacedBy(spacingDp.dp)
         ) {
-            QuickAccessButton(
-                tileId = "purchase",
-                icon = Icons.Outlined.LocalAtm,
-                tileRes = R.drawable.tile_purchase,
-                lightTileRes = R.drawable.tile_light_purchase,
-                premiumTileRes = R.drawable.tile_premium_purchase,
-                lightTint = AccentOrange,
-                label = tr("Закупівля", "Purchase"),
-                tileSizeOverride = tileSizeOverride,
-                onClick = onPurchaseClick
-            )
-            QuickAccessButton(
-                tileId = "sale",
-                icon = Icons.Filled.ShoppingCart,
-                tileRes = R.drawable.tile_sale,
-                lightTileRes = R.drawable.tile_light_sale,
-                premiumTileRes = R.drawable.tile_premium_sale,
-                lightTint = AccentGreen,
-                label = tr("Продаж", "Sale"),
-                tileSizeOverride = tileSizeOverride,
-                onClick = onSaleClick
-            )
-            QuickAccessButton(
-                tileId = "stock",
-                icon = Icons.Filled.Store,
-                tileRes = R.drawable.tile_stock,
-                lightTileRes = R.drawable.tile_light_stock,
-                premiumTileRes = R.drawable.tile_premium_stock,
-                lightTint = AccentBlue,
-                label = tr("Склад", "Stock"),
-                tileSizeOverride = tileSizeOverride,
-                onClick = onStockClick
-            )
-            QuickAccessButton(
-                tileId = "clients",
-                icon = Icons.Filled.People,
-                tileRes = R.drawable.tile_clients,
-                lightTileRes = R.drawable.tile_light_clients,
-                premiumTileRes = R.drawable.tile_premium_clients,
-                lightTint = AccentTeal,
-                label = tr("Клієнти", "Clients"),
-                tileSizeOverride = tileSizeOverride,
-                onClick = onClientsClick
-            )
-            QuickAccessButton(
-                tileId = "suppliers",
-                icon = Icons.Filled.People,
-                tileRes = R.drawable.tile_suppliers,
-                lightTileRes = R.drawable.tile_light_suppliers,
-                premiumTileRes = R.drawable.tile_premium_suppliers,
-                lightTint = AccentPurple,
-                label = tr("Постачальники", "Suppliers"),
-                tileSizeOverride = tileSizeOverride,
-                onClick = onSuppliersClick
-            )
-            QuickAccessButton(
-                tileId = "collection",
-                icon = Icons.Outlined.BarChart,
-                tileRes = R.drawable.tile_collection,
-                lightTileRes = R.drawable.tile_light_collection,
-                premiumTileRes = R.drawable.tile_premium_collection,
-                lightTint = AccentBlue,
-                label = tr("Моя колекція", "Collection"),
-                tileSizeOverride = tileSizeOverride,
-                onClick = onDocumentsClick
-            )
+            Row(
+                modifier = rowModifier,
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Top
+            ) {
+                QuickAccessButton(
+                    tileId = "purchase",
+                    icon = Icons.Outlined.LocalAtm,
+                    tileRes = R.drawable.tile_purchase,
+                    lightTileRes = R.drawable.tile_light_purchase,
+                    premiumTileRes = R.drawable.tile_premium_purchase,
+                    lightTint = AccentOrange,
+                    label = tr("Закупівля", "Purchase"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onPurchaseClick
+                )
+                QuickAccessButton(
+                    tileId = "sale",
+                    icon = Icons.Filled.ShoppingCart,
+                    tileRes = R.drawable.tile_sale,
+                    lightTileRes = R.drawable.tile_light_sale,
+                    premiumTileRes = R.drawable.tile_premium_sale,
+                    lightTint = AccentGreen,
+                    label = tr("Продаж", "Sale"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onSaleClick
+                )
+                QuickAccessButton(
+                    tileId = "stock",
+                    icon = Icons.Filled.Store,
+                    tileRes = R.drawable.tile_stock,
+                    lightTileRes = R.drawable.tile_light_stock,
+                    premiumTileRes = R.drawable.tile_premium_stock,
+                    lightTint = AccentBlue,
+                    label = tr("Склад", "Stock"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onStockClick
+                )
+            }
+            Row(
+                modifier = rowModifier,
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Top
+            ) {
+                QuickAccessButton(
+                    tileId = "clients",
+                    icon = Icons.Filled.People,
+                    tileRes = R.drawable.tile_clients,
+                    lightTileRes = R.drawable.tile_light_clients,
+                    premiumTileRes = R.drawable.tile_premium_clients,
+                    lightTint = AccentTeal,
+                    label = tr("Клієнти", "Clients"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onClientsClick
+                )
+                QuickAccessButton(
+                    tileId = "suppliers",
+                    icon = Icons.Filled.People,
+                    tileRes = R.drawable.tile_suppliers,
+                    lightTileRes = R.drawable.tile_light_suppliers,
+                    premiumTileRes = R.drawable.tile_premium_suppliers,
+                    lightTint = AccentPurple,
+                    label = tr("Постачальники", "Suppliers"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onSuppliersClick
+                )
+                QuickAccessButton(
+                    tileId = "collection",
+                    icon = Icons.Outlined.BarChart,
+                    tileRes = R.drawable.tile_collection,
+                    lightTileRes = R.drawable.tile_light_collection,
+                    premiumTileRes = R.drawable.tile_premium_collection,
+                    lightTint = AccentBlue,
+                    label = tr("Моя колекція", "Collection"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onCollectionClick
+                )
+            }
+            Row(
+                modifier = rowModifier,
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Top
+            ) {
+                QuickAccessButton(
+                    tileId = "reports",
+                    icon = Icons.Outlined.BarChart,
+                    tileRes = R.drawable.tile_reports,
+                    lightTileRes = R.drawable.tile_light_reports,
+                    premiumTileRes = R.drawable.tile_premium_reports,
+                    lightTint = AccentBlue,
+                    label = tr("Звіти", "Reports"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onReportsClick
+                )
+                QuickAccessButton(
+                    tileId = "expenses",
+                    icon = Icons.Outlined.LocalAtm,
+                    tileRes = R.drawable.tile_expenses,
+                    lightTileRes = R.drawable.tile_light_expenses,
+                    // Для теми Premium 3D окремої іконки витрат немає — fallback
+                    // на векторну іконку всередині PremiumQuickAccessButton.
+                    premiumTileRes = null,
+                    lightTint = AccentRed,
+                    label = tr("Витрати", "Expenses"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onExpensesClick
+                )
+                QuickAccessButton(
+                    tileId = "documents",
+                    icon = Icons.Outlined.Receipt,
+                    // Окремих PNG-плиток для "Документів" немає — рендеримо саму
+                    // векторну іконку на фоновому квадраті (як зроблено для DEFAULT-теми).
+                    tileRes = 0,
+                    lightTileRes = null,
+                    premiumTileRes = null,
+                    lightTint = AccentYellow,
+                    label = tr("Документи", "Documents"),
+                    tileSizeOverride = tileSizeOverride,
+                    onClick = onDocumentsClick
+                )
+            }
         }
     }
 }
@@ -604,7 +692,12 @@ fun QuickAccessButton(
      */
     tileId: String,
     icon: ImageVector,
-    tileRes: Int,
+    /**
+     * Drawable для тем OLEG_SMILE/OLEG_SMILE_V2. Якщо `null` або `0` — рендериться
+     * векторна іконка [icon] як fallback (поведінка така ж, як у DEFAULT-темі), щоб
+     * можна було підставити плитку без власного PNG-арту (напр. "Документи").
+     */
+    tileRes: Int?,
     lightTileRes: Int? = null,
     /**
      * Нові 3D-іконки для преміум-теми ([AppTheme.OLEG_SMILE_PREMIUM]).
@@ -615,8 +708,8 @@ fun QuickAccessButton(
     lightTint: Color = Color.Unspecified,
     label: String,
     /**
-     * Перевизначення розміру плитки у dp (без одиниць) — використовується в [QuickAccessRow]
-     * для вузьких екранів, де стандартних 80dp на 6 плиток не влізає. `null` —
+     * Перевизначення розміру плитки у dp (без одиниць) — використовується в [QuickAccessGrid]
+     * для вузьких екранів, де стандартних 80dp на 3 плитки в ряд не влізає. `null` —
      * використовуються стандартні розміри.
      */
     tileSizeOverride: Float? = null,
@@ -685,13 +778,27 @@ fun QuickAccessButton(
                 UserTilePhoto(path = userPhotoPath, label = label, size = iconSizeDp, corner = iconCornerRadius)
             } else when (theme) {
                 AppTheme.OLEG_SMILE, AppTheme.OLEG_SMILE_V2 -> {
-                    Image(
-                        painter = painterResource(id = tileRes),
-                        contentDescription = label,
-                        modifier = Modifier
-                            .size(iconSizeDp)
-                            .clip(RoundedCornerShape(iconCornerRadius))
-                    )
+                    if (tileRes != null && tileRes != 0) {
+                        Image(
+                            painter = painterResource(id = tileRes),
+                            contentDescription = label,
+                            modifier = Modifier
+                                .size(iconSizeDp)
+                                .clip(RoundedCornerShape(iconCornerRadius))
+                        )
+                    } else {
+                        val fallbackTint = if (lightTint == Color.Unspecified) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            lightTint
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = fallbackTint,
+                            modifier = Modifier.size(iconSizeDp * 0.55f)
+                        )
+                    }
                 }
                 AppTheme.OLEG_SMILE_PREMIUM -> {
                     if (premiumTileRes != null) {
