@@ -108,6 +108,23 @@ val LocalDashboardTitle = compositionLocalOf { "" }
 val LocalDashboardTitleSize = compositionLocalOf { SettingsManager.DEFAULT_DASHBOARD_TITLE_SIZE }
 
 /**
+ * Колір тексту заголовка головного екрана у hex без `#`. Порожній рядок —
+ * використовується стандартний `colorScheme.primary` з теми.
+ */
+val LocalDashboardTitleColor = compositionLocalOf { "" }
+
+/**
+ * Зсув заголовка головного екрана по горизонталі у dp. Дозволяє "перетягувати"
+ * напис вліво/вправо у шапці, аналогічно до емблеми.
+ */
+val LocalDashboardTitleOffsetX = compositionLocalOf { 0 }
+
+/**
+ * Зсув заголовка головного екрана по вертикалі у dp.
+ */
+val LocalDashboardTitleOffsetY = compositionLocalOf { 0 }
+
+/**
  * Розмір шрифту заголовків секцій Dashboard ("Швидкий доступ", "Останні операції") у sp.
  */
 val LocalDashboardHeaderFontSize = compositionLocalOf { SettingsManager.DEFAULT_DASHBOARD_HEADER_FONT_SIZE }

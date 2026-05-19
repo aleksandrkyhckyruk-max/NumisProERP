@@ -151,6 +151,9 @@ class MainActivity : ComponentActivity() {
             val emblemOffsetY by settingsManager.emblemOffsetYState
             val dashboardTitle by settingsManager.dashboardTitleState
             val dashboardTitleSize by settingsManager.dashboardTitleSizeState
+            val dashboardTitleColor by settingsManager.dashboardTitleColorState
+            val dashboardTitleOffsetX by settingsManager.dashboardTitleOffsetXState
+            val dashboardTitleOffsetY by settingsManager.dashboardTitleOffsetYState
             val dashboardHeaderFontSize by settingsManager.dashboardHeaderFontSizeState
             val dashboardHeaderColor by settingsManager.dashboardHeaderColorState
             val tileLabelFontSize by settingsManager.tileLabelFontSizeState
@@ -183,6 +186,9 @@ class MainActivity : ComponentActivity() {
                 emblemOffsetY = emblemOffsetY,
                 dashboardTitle = dashboardTitle,
                 dashboardTitleSize = dashboardTitleSize,
+                dashboardTitleColorHex = dashboardTitleColor,
+                dashboardTitleOffsetX = dashboardTitleOffsetX,
+                dashboardTitleOffsetY = dashboardTitleOffsetY,
                 dashboardHeaderFontSize = dashboardHeaderFontSize,
                 dashboardHeaderColorHex = dashboardHeaderColor,
                 tileLabelFontSize = tileLabelFontSize,
@@ -231,7 +237,9 @@ fun NumisProERPNavigation() {
 
     val drawerItems = listOf(
         DrawerItem(tr("Головне меню", "Home"), Screen.Dashboard.route, false, Icons.Default.Home),
-        DrawerItem(tr("Додати товар", "Add product"), Screen.Purchase.route, false, Icons.Default.Add),
+        // "Додати товар" відкриває екран "Товари" з одразу розгорнутим діалогом
+        // ручного додавання товару в каталог (без переходу в "Закупівлю" і без Excel).
+        DrawerItem(tr("Додати товар", "Add product"), Screen.Products.routeWithOpenAdd(true), false, Icons.Default.Add),
         DrawerItem(tr("Товари", "Products"), Screen.Products.route, false, Icons.Outlined.Inventory2),
         DrawerItem(tr("Мої замітки", "My Notes"), Screen.MyNotes.route, false, Icons.Outlined.Edit),
         // "Моя збірка" винесено в нижню панель навігації — між "Каталог" і "Склад".

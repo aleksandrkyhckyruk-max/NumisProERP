@@ -363,6 +363,51 @@ class SettingsManager @Inject constructor(
             prefs.edit().putInt(KEY_DASHBOARD_TITLE_SIZE, clamped).apply()
         }
 
+    // Колір заголовка ("напис біля емблеми") в hex без `#`. Порожньо —
+    // використовується колір з теми (`colorScheme.primary`), як раніше.
+    private val _dashboardTitleColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_DASHBOARD_TITLE_COLOR, "") ?: "")
+
+    val dashboardTitleColorState: MutableState<String>
+        get() = _dashboardTitleColor
+
+    var dashboardTitleColor: String
+        get() = _dashboardTitleColor.value
+        set(value) {
+            _dashboardTitleColor.value = value
+            prefs.edit().putString(KEY_DASHBOARD_TITLE_COLOR, value).apply()
+        }
+
+    // Зсув заголовка головного екрана по горизонталі (dp). 0 — без зсуву.
+    private val _dashboardTitleOffsetX: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_DASHBOARD_TITLE_OFFSET_X, 0))
+
+    val dashboardTitleOffsetXState: MutableState<Int>
+        get() = _dashboardTitleOffsetX
+
+    var dashboardTitleOffsetX: Int
+        get() = _dashboardTitleOffsetX.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_DASHBOARD_TITLE_OFFSET, MAX_DASHBOARD_TITLE_OFFSET)
+            _dashboardTitleOffsetX.value = clamped
+            prefs.edit().putInt(KEY_DASHBOARD_TITLE_OFFSET_X, clamped).apply()
+        }
+
+    // Зсув заголовка головного екрана по вертикалі (dp).
+    private val _dashboardTitleOffsetY: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_DASHBOARD_TITLE_OFFSET_Y, 0))
+
+    val dashboardTitleOffsetYState: MutableState<Int>
+        get() = _dashboardTitleOffsetY
+
+    var dashboardTitleOffsetY: Int
+        get() = _dashboardTitleOffsetY.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_DASHBOARD_TITLE_OFFSET, MAX_DASHBOARD_TITLE_OFFSET)
+            _dashboardTitleOffsetY.value = clamped
+            prefs.edit().putInt(KEY_DASHBOARD_TITLE_OFFSET_Y, clamped).apply()
+        }
+
     // ==================== СТИЛЬ ЗАГОЛОВКІВ ТА ПІДПИСІВ НА ДАШБОРДІ ====================
     // Дозволяє змінювати розмір і колір заголовків "Швидкий доступ"/"Останні операції"
     // та підписів плиток (Закупівля, Склад тощо), щоб на будь-якому фоні
@@ -612,6 +657,9 @@ class SettingsManager @Inject constructor(
         private const val KEY_EMBLEM_OFFSET_Y = "emblem_offset_y"
         private const val KEY_DASHBOARD_TITLE = "dashboard_title"
         private const val KEY_DASHBOARD_TITLE_SIZE = "dashboard_title_size"
+        private const val KEY_DASHBOARD_TITLE_COLOR = "dashboard_title_color"
+        private const val KEY_DASHBOARD_TITLE_OFFSET_X = "dashboard_title_offset_x"
+        private const val KEY_DASHBOARD_TITLE_OFFSET_Y = "dashboard_title_offset_y"
         private const val KEY_DASHBOARD_HEADER_FONT_SIZE = "dashboard_header_font_size"
         private const val KEY_DASHBOARD_HEADER_COLOR = "dashboard_header_color"
         private const val KEY_TILE_LABEL_FONT_SIZE = "tile_label_font_size"
@@ -649,15 +697,24 @@ class SettingsManager @Inject constructor(
         // Стандарт збігається з попереднім жорстким 72dp у `DashboardHeader`.
         const val DEFAULT_EMBLEM_SIZE = 72
         const val MIN_EMBLEM_SIZE = 40
-        const val MAX_EMBLEM_SIZE = 160
-        // Межі зсуву емблеми в dp. Дозволяє користувачу вивести емблему поверх
-        // картки балансу / зробити її як водяний знак.
-        const val MIN_EMBLEM_OFFSET = -200
-        const val MAX_EMBLEM_OFFSET = 200
+        // Розширений діапазон розміру емблеми (до ~всієї ширини шапки), щоб
+        // користувач міг зробити її значно більшою, ніж дозволяв старий ліміт 160dp.
+        const val MAX_EMBLEM_SIZE = 400
+        // Межі зсуву емблеми в dp. Розширено, щоб емблему можна було переміщати
+        // практично від краю до краю екрана і помітно вгору/вниз.
+        const val MIN_EMBLEM_OFFSET = -600
+        const val MAX_EMBLEM_OFFSET = 600
         // Назва "NumisProERP" в шапці за замовчуванням рендерилася на 26.sp.
         const val DEFAULT_DASHBOARD_TITLE_SIZE = 26
-        const val MIN_DASHBOARD_TITLE_SIZE = 14
-        const val MAX_DASHBOARD_TITLE_SIZE = 40
+        const val MIN_DASHBOARD_TITLE_SIZE = 10
+        // Розширений верхній ліміт розміру заголовка для тих, хто хоче
+        // дуже великий "напис" поряд з емблемою (раніше було 40sp).
+        const val MAX_DASHBOARD_TITLE_SIZE = 96
+        // Межі зсуву тексту заголовка головного екрана у dp. Узгоджені
+        // з межами емблеми, щоб напис можна було тягати в тих самих
+        // діапазонах.
+        const val MIN_DASHBOARD_TITLE_OFFSET = -600
+        const val MAX_DASHBOARD_TITLE_OFFSET = 600
         // Стандартний розмір заголовків "Швидкий доступ" / "Останні операції" — 18.sp.
         const val DEFAULT_DASHBOARD_HEADER_FONT_SIZE = 18
         const val MIN_DASHBOARD_HEADER_FONT_SIZE = 12

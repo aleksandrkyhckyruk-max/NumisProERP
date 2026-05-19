@@ -23,7 +23,14 @@ sealed class Screen(val route: String) {
         fun passArguments(type: String, title: String): String = "details/$type/$title"
     }
     object Settings : Screen("settings")
-    object Products : Screen("products")  // Усі товари в базі (drawer "Товари")
+    object Products : Screen("products") {
+        // Усі товари в базі (drawer "Товари"). Опціональний параметр `openAdd=true`
+        // використовується кнопкою "Додати товар" у бічному меню — після переходу
+        // на екран автоматично відкривається діалог ручного додавання товару.
+        const val ROUTE_PATTERN = "products?openAdd={openAdd}"
+        fun routeWithOpenAdd(openAdd: Boolean = true): String =
+            "products?openAdd=$openAdd"
+    }
     object Writeoff : Screen("writeoff")  // Списання товарів зі складу
     object History : Screen("history")    // Повна історія операцій
     object Catalog : Screen("catalog")
@@ -92,9 +99,23 @@ fun NavGraph(
                 title = title
             )
         }
-        // Усі товари в базі (drawer пункт "Товари")
-        composable(Screen.Products.route) {
-            ProductsScreen(navController = navController)
+        // Усі товари в базі (drawer пункт "Товари").
+        // Опціональний параметр `openAdd=true` — з кнопки "Додати товар" у боковому меню:
+        // одразу відкриває діалог ручного додавання товару після переходу.
+        composable(
+            route = Screen.Products.ROUTE_PATTERN,
+            arguments = listOf(
+                navArgument("openAdd") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
+            )
+        ) { backStackEntry ->
+            val openAdd = backStackEntry.arguments?.getBoolean("openAdd") ?: false
+            ProductsScreen(
+                navController = navController,
+                openAddOnStart = openAdd
+            )
         }
         composable(Screen.Writeoff.route) {
             WriteoffScreen(navController = navController)

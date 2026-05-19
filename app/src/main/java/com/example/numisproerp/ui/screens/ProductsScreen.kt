@@ -85,11 +85,17 @@ import com.numisproerp.utils.ImageStorage
 @Composable
 fun ProductsScreen(
     navController: NavHostController,
-    viewModel: ProductsViewModel = hiltViewModel()
+    viewModel: ProductsViewModel = hiltViewModel(),
+    /**
+     * Якщо `true` — діалог ручного додавання товару відкривається одразу
+     * після першої композиції. Використовується кнопкою "Додати товар" у
+     * боковому меню — переходимо в "Товари" і відразу даємо заповнити форму.
+     */
+    openAddOnStart: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedProduct by remember { mutableStateOf<Product?>(null) }
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(openAddOnStart) }
     val context = LocalContext.current
     val addedText = tr("Товар додано в каталог", "Product added to catalog")
 

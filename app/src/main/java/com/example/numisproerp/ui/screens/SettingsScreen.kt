@@ -1397,6 +1397,57 @@ private fun EmblemDialog(
                     ),
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                val titleColor by settings.dashboardTitleColorState
+                Text(
+                    tr("Колір назви", "Title color"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                ColorPickerRow(
+                    currentHex = titleColor,
+                    onSelect = { settings.dashboardTitleColor = it }
+                )
+                Text(
+                    tr(
+                        "∅ — використовується колір з теми.",
+                        "∅ — uses the theme color."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                val titleOffsetX by settings.dashboardTitleOffsetXState
+                Text(
+                    tr("Зсув назви вліво/вправо: ${titleOffsetX}dp",
+                        "Title horizontal offset: ${titleOffsetX}dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = titleOffsetX.toFloat(),
+                    onValueChange = { settings.dashboardTitleOffsetX = it.toInt() },
+                    valueRange = SettingsManager.MIN_DASHBOARD_TITLE_OFFSET.toFloat()
+                            ..SettingsManager.MAX_DASHBOARD_TITLE_OFFSET.toFloat()
+                )
+                val titleOffsetY by settings.dashboardTitleOffsetYState
+                Text(
+                    tr("Зсув назви вверх/вниз: ${titleOffsetY}dp",
+                        "Title vertical offset: ${titleOffsetY}dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = titleOffsetY.toFloat(),
+                    onValueChange = { settings.dashboardTitleOffsetY = it.toInt() },
+                    valueRange = SettingsManager.MIN_DASHBOARD_TITLE_OFFSET.toFloat()
+                            ..SettingsManager.MAX_DASHBOARD_TITLE_OFFSET.toFloat()
+                )
+                Text(
+                    tr(
+                        "Зсуви назви дозволяють перетягувати напис у шапці так само, як емблему.",
+                        "Title offsets let you drag the inscription like the emblem."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
