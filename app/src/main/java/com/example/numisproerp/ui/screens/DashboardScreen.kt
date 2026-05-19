@@ -22,11 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.LocalAtm
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,7 +57,6 @@ import com.numisproerp.ui.theme.AccentOrange
 import com.numisproerp.ui.theme.AccentPurple
 import com.numisproerp.ui.theme.AccentRed
 import com.numisproerp.ui.theme.AccentTeal
-import com.numisproerp.ui.theme.AccentYellow
 import com.numisproerp.ui.theme.IOSDesign
 import com.numisproerp.ui.theme.IOSIconChip
 import com.numisproerp.ui.theme.LocalAppTheme
@@ -123,9 +119,7 @@ fun DashboardScreen(
             onNavigateToReports = { navController.navigate(Screen.Reports.route) },
             onNavigateToPurchase = { navController.navigate(Screen.Purchase.route) },
             onNavigateToSale = { navController.navigate(Screen.Sale.route) },
-            onNavigateToExpenses = { navController.navigate(Screen.Expenses.route) },
             onNavigateToDocuments = { navController.navigate(Screen.MyCollection.route) },
-            onNavigateToDocumentsScreen = { navController.navigate(Screen.Documents.route) },
             onNavigateToSuppliers = { navController.navigate(Screen.Suppliers.route) },
             onNavigateToDetails = { type, title ->
                 navController.navigate("details/$type/$title")
@@ -142,9 +136,7 @@ fun DashboardContent(
     onNavigateToReports: () -> Unit,
     onNavigateToPurchase: () -> Unit,
     onNavigateToSale: () -> Unit,
-    onNavigateToExpenses: () -> Unit,
     onNavigateToDocuments: () -> Unit,
-    onNavigateToDocumentsScreen: () -> Unit,
     onNavigateToSuppliers: () -> Unit,
     onNavigateToDetails: (String, String) -> Unit
 ) {
@@ -201,16 +193,16 @@ fun DashboardContent(
         }
 
         item {
+            // Сітка швидкого доступу — 2 ряди по 3 плитки (6 кнопок).
+            // Звіти, Витрати та Документи доступні з бокового меню (drawer)
+            // і навмисно прибрані з робочого столу, щоб не дублюватися.
             QuickAccessGrid(
                 onPurchaseClick = onNavigateToPurchase,
                 onSaleClick = onNavigateToSale,
                 onStockClick = onNavigateToStock,
                 onClientsClick = onNavigateToClients,
                 onSuppliersClick = onNavigateToSuppliers,
-                onCollectionClick = onNavigateToDocuments,
-                onReportsClick = onNavigateToReports,
-                onExpensesClick = onNavigateToExpenses,
-                onDocumentsClick = onNavigateToDocumentsScreen
+                onCollectionClick = onNavigateToDocuments
             )
         }
 
@@ -536,10 +528,7 @@ fun QuickAccessGrid(
     onStockClick: () -> Unit,
     onClientsClick: () -> Unit,
     onSuppliersClick: () -> Unit,
-    onCollectionClick: () -> Unit,
-    onReportsClick: () -> Unit,
-    onExpensesClick: () -> Unit,
-    onDocumentsClick: () -> Unit
+    onCollectionClick: () -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val columns = 3
@@ -632,49 +621,6 @@ fun QuickAccessGrid(
                     label = tr("Моя колекція", "Collection"),
                     tileSizeOverride = tileSizeOverride,
                     onClick = onCollectionClick
-                )
-            }
-            Row(
-                modifier = rowModifier,
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Top
-            ) {
-                QuickAccessButton(
-                    tileId = "reports",
-                    icon = Icons.Outlined.BarChart,
-                    tileRes = R.drawable.tile_reports,
-                    lightTileRes = R.drawable.tile_light_reports,
-                    premiumTileRes = R.drawable.tile_premium_reports,
-                    lightTint = AccentBlue,
-                    label = tr("Звіти", "Reports"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onReportsClick
-                )
-                QuickAccessButton(
-                    tileId = "expenses",
-                    icon = Icons.Outlined.LocalAtm,
-                    tileRes = R.drawable.tile_expenses,
-                    lightTileRes = R.drawable.tile_light_expenses,
-                    // Для теми Premium 3D окремої іконки витрат немає — fallback
-                    // на векторну іконку всередині PremiumQuickAccessButton.
-                    premiumTileRes = null,
-                    lightTint = AccentRed,
-                    label = tr("Витрати", "Expenses"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onExpensesClick
-                )
-                QuickAccessButton(
-                    tileId = "documents",
-                    icon = Icons.Outlined.Receipt,
-                    // Окремих PNG-плиток для "Документів" немає — рендеримо саму
-                    // векторну іконку на фоновому квадраті (як зроблено для DEFAULT-теми).
-                    tileRes = 0,
-                    lightTileRes = null,
-                    premiumTileRes = null,
-                    lightTint = AccentYellow,
-                    label = tr("Документи", "Documents"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onDocumentsClick
                 )
             }
         }

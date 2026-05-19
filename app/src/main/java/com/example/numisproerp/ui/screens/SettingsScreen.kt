@@ -1380,17 +1380,6 @@ private fun EmblemDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                val titleSize by settings.dashboardTitleSizeState
-                Text(
-                    tr("Розмір назви: ${titleSize}sp", "Title size: ${titleSize}sp"),
-                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
-                )
-                Slider(
-                    value = titleSize.toFloat(),
-                    onValueChange = { settings.dashboardTitleSize = it.toInt() },
-                    valueRange = SettingsManager.MIN_DASHBOARD_TITLE_SIZE.toFloat()
-                            ..SettingsManager.MAX_DASHBOARD_TITLE_SIZE.toFloat()
-                )
                 Text(
                     tr(
                         "Порожнє поле — буде використана стандартна назва теми.",
@@ -1399,10 +1388,12 @@ private fun EmblemDialog(
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
 
+                // Колір тексту назви виставляємо одразу після поля вводу,
+                // щоб його було видно без прокручування, як просив користувач.
                 Spacer(modifier = Modifier.height(8.dp))
                 val titleColor by settings.dashboardTitleColorState
                 Text(
-                    tr("Колір назви", "Title color"),
+                    tr("Колір тексту назви", "Title text color"),
                     fontSize = 13.sp, fontWeight = FontWeight.SemiBold
                 )
                 ColorPickerRow(
@@ -1415,6 +1406,19 @@ private fun EmblemDialog(
                         "∅ — uses the theme color."
                     ),
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                val titleSize by settings.dashboardTitleSizeState
+                Text(
+                    tr("Розмір назви: ${titleSize}sp", "Title size: ${titleSize}sp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = titleSize.toFloat(),
+                    onValueChange = { settings.dashboardTitleSize = it.toInt() },
+                    valueRange = SettingsManager.MIN_DASHBOARD_TITLE_SIZE.toFloat()
+                            ..SettingsManager.MAX_DASHBOARD_TITLE_SIZE.toFloat()
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
