@@ -128,6 +128,7 @@ fun SettingsScreen(
     var showBackgroundDialog by remember { mutableStateOf(false) }
     var showTileIconsDialog by remember { mutableStateOf(false) }
     var showEmblemDialog by remember { mutableStateOf(false) }
+    var showDashboardTextDialog by remember { mutableStateOf(false) }
     var showInfoCardsDialog by remember { mutableStateOf(false) }
     var showTopBarDialog by remember { mutableStateOf(false) }
     var showBottomBarDialog by remember { mutableStateOf(false) }
@@ -213,10 +214,13 @@ fun SettingsScreen(
         }
     }
 
+    // Бекап тепер за замовчуванням ZIP: `database.xlsx` + папка `photos/`. Так
+    // зберігаються фото товарів і власної колекції. Старі чисті .xlsx-бекапи
+    // лишаються зворотно сумісними для імпорту.
     val exportAction: () -> Unit = {
         scope.launch {
             val exporter = ExcelExporter(database)
-            val result = exporter.exportToExcelDefault(context)
+            val result = exporter.exportToZipDefault(context)
             Toast.makeText(
                 context,
                 if (result.success) "$exportDoneTitle: ${result.filePath}" else result.message,
@@ -372,7 +376,8 @@ fun SettingsScreen(
                 // для системних — даємо людську підписку. Додаємо в підзаголовок, щоб видно було,
                 // який шрифт було обрано, прямо на екрані Налаштувань.
                 val familyName = remember(familyKey) {
-                    com.numisproerp.ui.theme.GoogleFontOptions.firstOrNull { it.key == familyKey }?.displayName
+                    com.numisproerp.ui.theme.OfflineFontOptions.firstOrNull { it.key == familyKey }?.displayName
+                        ?: com.numisproerp.ui.theme.GoogleFontOptions.firstOrNull { it.key == familyKey }?.displayName
                         ?: when (familyKey) {
                             "sans-serif" -> "Sans-serif"
                             "serif" -> "Serif"
@@ -424,6 +429,27 @@ fun SettingsScreen(
                     else
                         tr("Стандартна · Розмір: ${emblemSize}dp", "Default · Size: ${emblemSize}dp"),
                     onClick = { showEmblemDialog = true }
+                )
+            }
+            item {
+                val headerSize = settings.dashboardHeaderFontSizeState.value
+                val labelSize = settings.tileLabelFontSizeState.value
+                val headerColorSet = settings.dashboardHeaderColorState.value.isNotBlank()
+                val labelColorSet = settings.tileLabelColorState.value.isNotBlank()
+                SettingsButton(
+                    icon = Icons.Default.FormatSize,
+                    title = tr("Текст на робочому столі", "Dashboard text"),
+                    subtitle = tr(
+                        "Заголовки: ${headerSize}sp" +
+                            (if (headerColorSet) " · колір ✓" else "") +
+                            " · Підписи: ${labelSize}sp" +
+                            (if (labelColorSet) " · колір ✓" else ""),
+                        "Headings: ${headerSize}sp" +
+                            (if (headerColorSet) " · color set" else "") +
+                            " · Labels: ${labelSize}sp" +
+                            (if (labelColorSet) " · color set" else "")
+                    ),
+                    onClick = { showDashboardTextDialog = true }
                 )
             }
             item {
@@ -594,10 +620,13 @@ fun SettingsScreen(
     if (showDataDialog) {
         DataDialog(
             onImport = {
-                importLauncher.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                // Дозволяємо вибрати як .xlsx, так і .zip-бекап. */* бо деякі
+                // файлові менеджери при mime application/zip не показують створені
+                // бекапи. Сам парсер вже сам вибирає потрібний режим за магічними байтами.
+                importLauncher.launch("*/*")
             },
             onImportProductsOnly = {
-                importProductsOnlyLauncher.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                importProductsOnlyLauncher.launch("*/*")
             },
             onExport = exportAction,
             onDismiss = { showDataDialog = false }
@@ -638,6 +667,13 @@ fun SettingsScreen(
             onPickImage = { emblemPickerLauncher.launch("image/*") },
             onRemove = { settings.emblemImagePath = "" },
             onDismiss = { showEmblemDialog = false }
+        )
+    }
+
+    if (showDashboardTextDialog) {
+        DashboardTextDialog(
+            settings = settings,
+            onDismiss = { showDashboardTextDialog = false }
         )
     }
 
@@ -894,12 +930,18 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
     // Montserrat, Inter, Lora, Playfair Display, Poppins, Nunito, Open Sans).
     // Системні залишаємо як швидкі/легкі опції без мережі.
     data class FamilyEntry(val key: String, val display: String)
+    // Спершу системні (мить, без мережі), далі офлайн-шрифти (бандл — теж без
+    // мережі, з гарантованою візуальною різноманітністю), потім Google Fonts
+    // як онлайн-опція. Це відповідає вимогам користувача «без всяких гугл програм».
     val families: List<FamilyEntry> = remember {
         buildList {
             add(FamilyEntry("system", "System"))
             add(FamilyEntry("sans-serif", "Sans-serif"))
             add(FamilyEntry("serif", "Serif"))
             add(FamilyEntry("monospace", "Monospace"))
+            com.numisproerp.ui.theme.OfflineFontOptions.forEach { option ->
+                add(FamilyEntry(option.key, option.displayName))
+            }
             com.numisproerp.ui.theme.GoogleFontOptions.forEach { option ->
                 add(FamilyEntry(option.key, option.displayName))
             }
@@ -1290,6 +1332,71 @@ private fun EmblemDialog(
                     ),
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                val offsetX by settings.emblemOffsetXState
+                Text(
+                    tr("Зсув емблеми вліво/вправо: ${offsetX}dp",
+                        "Emblem horizontal offset: ${offsetX}dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = offsetX.toFloat(),
+                    onValueChange = { settings.emblemOffsetX = it.toInt() },
+                    valueRange = SettingsManager.MIN_EMBLEM_OFFSET.toFloat()
+                            ..SettingsManager.MAX_EMBLEM_OFFSET.toFloat()
+                )
+                val offsetY by settings.emblemOffsetYState
+                Text(
+                    tr("Зсув емблеми вверх/вниз: ${offsetY}dp",
+                        "Emblem vertical offset: ${offsetY}dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = offsetY.toFloat(),
+                    onValueChange = { settings.emblemOffsetY = it.toInt() },
+                    valueRange = SettingsManager.MIN_EMBLEM_OFFSET.toFloat()
+                            ..SettingsManager.MAX_EMBLEM_OFFSET.toFloat()
+                )
+                Text(
+                    tr(
+                        "Зсуви дозволяють вивести емблему поверх карток балансу або приховати її.",
+                        "Offsets let the emblem overlap balance cards or be hidden."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                val titleText by settings.dashboardTitleState
+                Text(
+                    tr("Назва в шапці", "Header title"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                OutlinedTextField(
+                    value = titleText,
+                    onValueChange = { settings.dashboardTitle = it },
+                    placeholder = { Text(tr("Наприклад, OlegSmile", "e.g. OlegSmile"), fontSize = 12.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                val titleSize by settings.dashboardTitleSizeState
+                Text(
+                    tr("Розмір назви: ${titleSize}sp", "Title size: ${titleSize}sp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = titleSize.toFloat(),
+                    onValueChange = { settings.dashboardTitleSize = it.toInt() },
+                    valueRange = SettingsManager.MIN_DASHBOARD_TITLE_SIZE.toFloat()
+                            ..SettingsManager.MAX_DASHBOARD_TITLE_SIZE.toFloat()
+                )
+                Text(
+                    tr(
+                        "Порожнє поле — буде використана стандартна назва теми.",
+                        "Empty field — the theme's default title is used."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
@@ -1302,6 +1409,92 @@ private fun EmblemDialog(
  * Діалог керування фоновим виглядом інформаційних карток на головному екрані
  * (баланс, місячні стати, останні операції): колір фону + прозорість.
  */
+/**
+ * Діалог налаштування стилю тексту на головному екрані: розмір і колір
+ * для заголовків секцій ("Швидкий доступ", "Останні операції") та для
+ * підписів плиток (Закупівля, Склад тощо). Допомагає коли фон світлий
+ * і стандартний колір тексту з теми погано читається.
+ */
+@Composable
+private fun DashboardTextDialog(
+    settings: SettingsManager,
+    onDismiss: () -> Unit
+) {
+    var headerSize by settings.dashboardHeaderFontSizeState
+    var headerColor by settings.dashboardHeaderColorState
+    var labelSize by settings.tileLabelFontSizeState
+    var labelColor by settings.tileLabelColorState
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Текст на робочому столі", "Dashboard text")) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    tr("Заголовки секцій", "Section headings"),
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    tr("Розмір: ${headerSize}sp", "Size: ${headerSize}sp"),
+                    fontSize = 13.sp
+                )
+                Slider(
+                    value = headerSize.toFloat(),
+                    onValueChange = { settings.dashboardHeaderFontSize = it.toInt() },
+                    valueRange = SettingsManager.MIN_DASHBOARD_HEADER_FONT_SIZE.toFloat()
+                            ..SettingsManager.MAX_DASHBOARD_HEADER_FONT_SIZE.toFloat()
+                )
+                Text(
+                    tr("Колір тексту", "Text color"),
+                    fontSize = 13.sp
+                )
+                ColorPickerRow(
+                    currentHex = headerColor,
+                    onSelect = { settings.dashboardHeaderColor = it }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    tr("Підписи іконок (Закупівля, Склад тощо)", "Tile labels (Purchase, Stock, etc.)"),
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    tr("Розмір: ${labelSize}sp", "Size: ${labelSize}sp"),
+                    fontSize = 13.sp
+                )
+                Slider(
+                    value = labelSize.toFloat(),
+                    onValueChange = { settings.tileLabelFontSize = it.toInt() },
+                    valueRange = SettingsManager.MIN_TILE_LABEL_FONT_SIZE.toFloat()
+                            ..SettingsManager.MAX_TILE_LABEL_FONT_SIZE.toFloat()
+                )
+                Text(
+                    tr("Колір підписів", "Label color"),
+                    fontSize = 13.sp
+                )
+                ColorPickerRow(
+                    currentHex = labelColor,
+                    onSelect = { settings.tileLabelColor = it }
+                )
+
+                Text(
+                    tr(
+                        "Якщо колір не вибрано — використовується колір з теми. " +
+                            "Шрифт спадковий і змінюється у розділі ‘Шрифти’.",
+                        "If no color is selected, the theme color is used. " +
+                            "Font family is inherited from the global ‘Fonts’ setting."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
+    )
+}
+
 @Composable
 private fun InfoCardsDialog(
     settings: SettingsManager,

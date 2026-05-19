@@ -300,8 +300,18 @@ fun StockScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(uiState.products) { product ->
+                        // Якщо у самого товару photoPath не заданий, шукаємо
+                        // фото з каталогу (за catalogId або назвою) — як у "Товарах".
+                        val resolvedImageUrl = if (product.photoPath.isNotBlank()) {
+                            product.photoPath
+                        } else {
+                            val pair = uiState.catalogImagePairMap[product.catalogId]
+                                ?: uiState.catalogImagePairMap[product.name]
+                            pair?.first.orEmpty()
+                        }
                         ProductCard(
                             product = product,
+                            imageUrl = resolvedImageUrl,
                             onClick = {
                                 scope.launch {
                                     selectedProduct = viewModel.getProductDetails(product.catalogId)
@@ -379,6 +389,7 @@ fun StockScreen(
 @Composable
 fun ProductCard(
     product: com.numisproerp.data.dao.ProductWithStock,
+    imageUrl: String = product.photoPath,
     onClick: () -> Unit
 ) {
     Card(
@@ -395,6 +406,36 @@ fun ProductCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Мініатюра фото товару (52dp). Якщо фото немає — беремо з каталогу
+            // по catalogId/назві (як в екрані "Товари"). Якщо взагалі нічого нема,
+            // показуємо іконку камери як плейсхолдер.
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            if (imageUrl.isBlank()) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.PhotoCamera,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            } else {
+                coil.compose.AsyncImage(
+                    model = coil.request.ImageRequest.Builder(ctx).data(imageUrl).build(),
+                    contentDescription = tr("Фото товару", "Product photo"),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = product.name,

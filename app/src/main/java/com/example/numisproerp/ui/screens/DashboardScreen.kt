@@ -4,12 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -62,8 +64,16 @@ import com.numisproerp.ui.theme.AccentYellow
 import com.numisproerp.ui.theme.IOSDesign
 import com.numisproerp.ui.theme.IOSIconChip
 import com.numisproerp.ui.theme.LocalAppTheme
+import com.numisproerp.ui.theme.LocalDashboardHeaderColor
+import com.numisproerp.ui.theme.LocalDashboardHeaderFontSize
+import com.numisproerp.ui.theme.LocalDashboardTitle
+import com.numisproerp.ui.theme.LocalDashboardTitleSize
 import com.numisproerp.ui.theme.LocalEmblemImagePath
+import com.numisproerp.ui.theme.LocalEmblemOffsetX
+import com.numisproerp.ui.theme.LocalEmblemOffsetY
 import com.numisproerp.ui.theme.LocalEmblemSize
+import com.numisproerp.ui.theme.LocalTileLabelColor
+import com.numisproerp.ui.theme.LocalTileLabelFontSize
 import com.numisproerp.ui.theme.LocalInfoCardBackgroundAlpha
 import com.numisproerp.ui.theme.LocalInfoCardBackgroundColor
 import com.numisproerp.ui.theme.LocalTileBackgroundAlpha
@@ -190,15 +200,8 @@ fun DashboardContent(
                 onPurchaseClick = onNavigateToPurchase,
                 onSaleClick = onNavigateToSale,
                 onStockClick = onNavigateToStock,
-                onClientsClick = onNavigateToClients
-            )
-        }
-
-        item {
-            QuickAccessRow2(
-                onReportsClick = onNavigateToReports,
+                onClientsClick = onNavigateToClients,
                 onSuppliersClick = onNavigateToSuppliers,
-                onExpensesClick = onNavigateToExpenses,
                 onDocumentsClick = onNavigateToDocuments
             )
         }
@@ -218,6 +221,10 @@ private fun DashboardHeader(currentDate: String) {
     val theme = LocalAppTheme.current
     val customEmblemPath = LocalEmblemImagePath.current
     val emblemSizeDp = LocalEmblemSize.current.dp
+    val offsetX = LocalEmblemOffsetX.current.dp
+    val offsetY = LocalEmblemOffsetY.current.dp
+    val userTitle = LocalDashboardTitle.current
+    val titleSizeSp = LocalDashboardTitleSize.current.sp
     if (theme == AppTheme.OLEG_SMILE_PREMIUM) {
         PremiumDashboardHeader(currentDate = currentDate)
         return
@@ -225,11 +232,12 @@ private fun DashboardHeader(currentDate: String) {
     if (customEmblemPath.isNotBlank() ||
         theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 || theme == AppTheme.OLEG_SMILE_LIGHT
     ) {
-        val titleText = when {
+        val defaultTitleText = when {
             theme == AppTheme.OLEG_SMILE_LIGHT -> "OlegSmile Light"
             theme == AppTheme.OLEG_SMILE || theme == AppTheme.OLEG_SMILE_V2 -> "OlegSmile"
             else -> "NumisProERP"
         }
+        val titleText = if (userTitle.isNotBlank()) userTitle else defaultTitleText
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -238,13 +246,14 @@ private fun DashboardHeader(currentDate: String) {
                 customPath = customEmblemPath,
                 defaultRes = R.drawable.oleg_smile_emblem,
                 contentDescription = titleText,
-                size = emblemSizeDp
+                size = emblemSizeDp,
+                modifier = Modifier.offset(x = offsetX, y = offsetY)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = titleText,
-                    fontSize = 26.sp,
+                    fontSize = titleSizeSp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -262,10 +271,11 @@ private fun DashboardHeader(currentDate: String) {
             }
         }
     } else {
+        val titleText = if (userTitle.isNotBlank()) userTitle else "NumisProERP"
         Column {
             Text(
-                text = "NumisProERP",
-                fontSize = 28.sp,
+                text = titleText,
+                fontSize = titleSizeSp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -294,7 +304,8 @@ private fun EmblemImage(
     customPath: String,
     defaultRes: Int,
     contentDescription: String,
-    size: androidx.compose.ui.unit.Dp
+    size: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier
 ) {
     val corner = size / 2
     if (customPath.isNotBlank()) {
@@ -305,7 +316,7 @@ private fun EmblemImage(
         AsyncImage(
             model = request,
             contentDescription = contentDescription,
-            modifier = Modifier
+            modifier = modifier
                 .size(size)
                 .clip(RoundedCornerShape(corner)),
             contentScale = ContentScale.Crop
@@ -314,7 +325,7 @@ private fun EmblemImage(
         Image(
             painter = painterResource(id = defaultRes),
             contentDescription = contentDescription,
-            modifier = Modifier
+            modifier = modifier
                 .size(size)
                 .clip(RoundedCornerShape(corner))
         )
@@ -324,6 +335,11 @@ private fun EmblemImage(
 @Composable
 private fun PremiumDashboardHeader(currentDate: String) {
     // Преміум 3D — окрема емблема "OLEG-SMILE Coin" з прозорим фоном.
+    val emblemSizeDp = LocalEmblemSize.current.dp
+    val offsetX = LocalEmblemOffsetX.current.dp
+    val offsetY = LocalEmblemOffsetY.current.dp
+    val userTitle = LocalDashboardTitle.current
+    val titleSizeSp = LocalDashboardTitleSize.current.sp
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -331,23 +347,34 @@ private fun PremiumDashboardHeader(currentDate: String) {
         Image(
             painter = painterResource(id = R.drawable.oleg_smile_coin_emblem),
             contentDescription = "OLEG-SMILE Coin",
-            modifier = Modifier.size(72.dp)
+            modifier = Modifier
+                .size(emblemSizeDp)
+                .offset(x = offsetX, y = offsetY)
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Row(verticalAlignment = Alignment.Bottom) {
+            if (userTitle.isNotBlank()) {
                 Text(
-                    text = "NumisPro",
-                    fontSize = 26.sp,
+                    text = userTitle,
+                    fontSize = titleSizeSp,
                     fontWeight = FontWeight.Bold,
                     color = OlegPremiumTitleCoral
                 )
-                Text(
-                    text = "ERP",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            } else {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "NumisPro",
+                        fontSize = titleSizeSp,
+                        fontWeight = FontWeight.Bold,
+                        color = OlegPremiumTitleCoral
+                    )
+                    Text(
+                        text = "ERP",
+                        fontSize = titleSizeSp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             Text(
                 text = tr("Облік та автоматизація", "Accounting & automation"),
@@ -454,118 +481,115 @@ fun MonthlyStatCardClickable(
 
 @Composable
 fun SectionHeader(title: String) {
+    val sizeSp = LocalDashboardHeaderFontSize.current
+    val customColor = parseHexColorOrNull(LocalDashboardHeaderColor.current)
     Text(
         text = title,
-        fontSize = 18.sp,
+        fontSize = sizeSp.sp,
         fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface
+        color = customColor ?: MaterialTheme.colorScheme.onSurface
     )
 }
 
+/**
+ * Один ряд з 6 плиток швидкого доступу. Звіти та Витрати винесені в бічне
+ * меню (для хованого доступу), щоб робочий стіл показував всі 6 основних операцій
+ * в одному ряду.
+ *
+ * Щоб 6 плиток влізали на вузьких екранах (від ~340dp ширини) — ми міряємо доступну
+ * ширину через [BoxWithConstraints] і рахуємо оптимальний розмір плитки. Якщо
+ * стандартних 80dp на плитку вистачає — вікриваємо без оверрайду. Інакше
+ * передаємо `tileSizeOverride`, який примусово зменшує плитки для цього ряду.
+ */
 @Composable
 fun QuickAccessRow(
     onPurchaseClick: () -> Unit,
     onSaleClick: () -> Unit,
     onStockClick: () -> Unit,
-    onClientsClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        QuickAccessButton(
-            tileId = "purchase",
-            icon = Icons.Outlined.LocalAtm,
-            tileRes = R.drawable.tile_purchase,
-            lightTileRes = R.drawable.tile_light_purchase,
-            premiumTileRes = R.drawable.tile_premium_purchase,
-            lightTint = AccentOrange,
-            label = tr("Закупівля", "Purchase"),
-            onClick = onPurchaseClick
-        )
-        QuickAccessButton(
-            tileId = "sale",
-            icon = Icons.Filled.ShoppingCart,
-            tileRes = R.drawable.tile_sale,
-            lightTileRes = R.drawable.tile_light_sale,
-            premiumTileRes = R.drawable.tile_premium_sale,
-            lightTint = AccentGreen,
-            label = tr("Продаж", "Sale"),
-            onClick = onSaleClick
-        )
-        QuickAccessButton(
-            tileId = "stock",
-            icon = Icons.Filled.Store,
-            tileRes = R.drawable.tile_stock,
-            lightTileRes = R.drawable.tile_light_stock,
-            premiumTileRes = R.drawable.tile_premium_stock,
-            lightTint = AccentBlue,
-            label = tr("Склад", "Stock"),
-            onClick = onStockClick
-        )
-        QuickAccessButton(
-            tileId = "clients",
-            icon = Icons.Filled.People,
-            tileRes = R.drawable.tile_clients,
-            lightTileRes = R.drawable.tile_light_clients,
-            premiumTileRes = R.drawable.tile_premium_clients,
-            lightTint = AccentTeal,
-            label = tr("Клієнти", "Clients"),
-            onClick = onClientsClick
-        )
-    }
-}
-
-@Composable
-fun QuickAccessRow2(
-    onReportsClick: () -> Unit,
+    onClientsClick: () -> Unit,
     onSuppliersClick: () -> Unit,
-    onExpensesClick: () -> Unit,
     onDocumentsClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        QuickAccessButton(
-            tileId = "reports",
-            icon = Icons.Outlined.BarChart,
-            tileRes = R.drawable.tile_reports,
-            lightTileRes = R.drawable.tile_light_reports,
-            premiumTileRes = R.drawable.tile_premium_reports,
-            lightTint = AccentYellow,
-            label = tr("Звіти", "Reports"),
-            onClick = onReportsClick
-        )
-        QuickAccessButton(
-            tileId = "suppliers",
-            icon = Icons.Filled.People,
-            tileRes = R.drawable.tile_suppliers,
-            lightTileRes = R.drawable.tile_light_suppliers,
-            premiumTileRes = R.drawable.tile_premium_suppliers,
-            lightTint = AccentPurple,
-            label = tr("Постачальники", "Suppliers"),
-            onClick = onSuppliersClick
-        )
-        QuickAccessButton(
-            tileId = "expenses",
-            icon = Icons.Outlined.Receipt,
-            tileRes = R.drawable.tile_expenses,
-            lightTileRes = R.drawable.tile_light_expenses,
-            lightTint = AccentRed,
-            label = tr("Витрати", "Expenses"),
-            onClick = onExpensesClick
-        )
-        QuickAccessButton(
-            tileId = "collection",
-            icon = Icons.Outlined.BarChart,
-            tileRes = R.drawable.tile_collection,
-            lightTileRes = R.drawable.tile_light_collection,
-            premiumTileRes = R.drawable.tile_premium_collection,
-            lightTint = AccentBlue,
-            label = tr("Моя колекція", "Collection"),
-            onClick = onDocumentsClick
-        )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val tileCount = 6
+        val spacingDp = 4f
+        val rawAvailable = maxWidth.value
+        val perTile = ((rawAvailable - spacingDp * (tileCount - 1)) / tileCount).coerceAtLeast(40f)
+        val defaultSize = com.numisproerp.data.settings.SettingsManager.TILE_BOX_SIZE_DP.toFloat()
+        // Якщо стандартних 80dp вистачає — не перевизначаємо розмір, щоб не
+        // ломати користувацький вибір розміру іконки в Налаштуваннях.
+        val tileSizeOverride: Float? = if (perTile >= defaultSize) null else perTile
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            QuickAccessButton(
+                tileId = "purchase",
+                icon = Icons.Outlined.LocalAtm,
+                tileRes = R.drawable.tile_purchase,
+                lightTileRes = R.drawable.tile_light_purchase,
+                premiumTileRes = R.drawable.tile_premium_purchase,
+                lightTint = AccentOrange,
+                label = tr("Закупівля", "Purchase"),
+                tileSizeOverride = tileSizeOverride,
+                onClick = onPurchaseClick
+            )
+            QuickAccessButton(
+                tileId = "sale",
+                icon = Icons.Filled.ShoppingCart,
+                tileRes = R.drawable.tile_sale,
+                lightTileRes = R.drawable.tile_light_sale,
+                premiumTileRes = R.drawable.tile_premium_sale,
+                lightTint = AccentGreen,
+                label = tr("Продаж", "Sale"),
+                tileSizeOverride = tileSizeOverride,
+                onClick = onSaleClick
+            )
+            QuickAccessButton(
+                tileId = "stock",
+                icon = Icons.Filled.Store,
+                tileRes = R.drawable.tile_stock,
+                lightTileRes = R.drawable.tile_light_stock,
+                premiumTileRes = R.drawable.tile_premium_stock,
+                lightTint = AccentBlue,
+                label = tr("Склад", "Stock"),
+                tileSizeOverride = tileSizeOverride,
+                onClick = onStockClick
+            )
+            QuickAccessButton(
+                tileId = "clients",
+                icon = Icons.Filled.People,
+                tileRes = R.drawable.tile_clients,
+                lightTileRes = R.drawable.tile_light_clients,
+                premiumTileRes = R.drawable.tile_premium_clients,
+                lightTint = AccentTeal,
+                label = tr("Клієнти", "Clients"),
+                tileSizeOverride = tileSizeOverride,
+                onClick = onClientsClick
+            )
+            QuickAccessButton(
+                tileId = "suppliers",
+                icon = Icons.Filled.People,
+                tileRes = R.drawable.tile_suppliers,
+                lightTileRes = R.drawable.tile_light_suppliers,
+                premiumTileRes = R.drawable.tile_premium_suppliers,
+                lightTint = AccentPurple,
+                label = tr("Постачальники", "Suppliers"),
+                tileSizeOverride = tileSizeOverride,
+                onClick = onSuppliersClick
+            )
+            QuickAccessButton(
+                tileId = "collection",
+                icon = Icons.Outlined.BarChart,
+                tileRes = R.drawable.tile_collection,
+                lightTileRes = R.drawable.tile_light_collection,
+                premiumTileRes = R.drawable.tile_premium_collection,
+                lightTint = AccentBlue,
+                label = tr("Моя колекція", "Collection"),
+                tileSizeOverride = tileSizeOverride,
+                onClick = onDocumentsClick
+            )
+        }
     }
 }
 
@@ -590,19 +614,33 @@ fun QuickAccessButton(
     premiumTileRes: Int? = null,
     lightTint: Color = Color.Unspecified,
     label: String,
+    /**
+     * Перевизначення розміру плитки у dp (без одиниць) — використовується в [QuickAccessRow]
+     * для вузьких екранів, де стандартних 80dp на 6 плиток не влізає. `null` —
+     * використовуються стандартні розміри.
+     */
+    tileSizeOverride: Float? = null,
     onClick: () -> Unit
 ) {
     val theme = LocalAppTheme.current
     val userPhotoPath = LocalUserTilePhotos.current[tileId].orEmpty()
     val bgAlpha = LocalTileBackgroundAlpha.current.coerceIn(0f, 1f)
     val customBgColor = parseHexColorOrNull(LocalTileBackgroundColor.current)
-    val iconSizeDp = LocalTileIconSize.current.dp
+    val baseIconSize = LocalTileIconSize.current
+    // Якщо перевизначено розмір плитки (compact row) — масштабуємо іконку пропорційно
+    // до базових 76/80 = 0.95, щоб обрамлення залишалося.
+    val iconSizeDp = if (tileSizeOverride != null) {
+        (tileSizeOverride * (baseIconSize.toFloat() / com.numisproerp.data.settings.SettingsManager.TILE_BOX_SIZE_DP.toFloat())).dp
+    } else {
+        baseIconSize.dp
+    }
     if (theme == AppTheme.OLEG_SMILE_PREMIUM && userPhotoPath.isBlank()) {
         PremiumQuickAccessButton(
             modifier = modifier,
             icon = icon,
             premiumTileRes = premiumTileRes,
             label = label,
+            tileSizeOverride = tileSizeOverride,
             onClick = onClick
         )
         return
@@ -612,7 +650,7 @@ fun QuickAccessButton(
     // не змінюється. За замовчуванням іконка = 76dp (фон мінус 4dp = майже впритул).
     // Якщо користувач збільшить іконку понад 80dp — вона візуально перекриє фон,
     // але "рамка" (Box) залишається ним самим.
-    val tileBoxSize = com.numisproerp.data.settings.SettingsManager.TILE_BOX_SIZE_DP.dp
+    val tileBoxSize = (tileSizeOverride ?: com.numisproerp.data.settings.SettingsManager.TILE_BOX_SIZE_DP.toFloat()).dp
     val tileCorner = 18.dp
     // Заокругленість іконки/фото масштабується пропорційно її розміру, відносно
     // дефолтних 76dp: при більшій іконці — більший radius, при меншій — менший.
@@ -702,13 +740,16 @@ fun QuickAccessButton(
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
+        val labelSize = LocalTileLabelFontSize.current.sp
+        val labelColor = parseHexColorOrNull(LocalTileLabelColor.current)
+            ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
         Text(
             text = label,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            fontSize = labelSize,
+            color = labelColor,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
-            lineHeight = 13.sp
+            lineHeight = labelSize * 1.2f
         )
     }
 }
@@ -751,12 +792,16 @@ private fun PremiumQuickAccessButton(
     icon: ImageVector,
     premiumTileRes: Int?,
     label: String,
+    tileSizeOverride: Float? = null,
     onClick: () -> Unit
 ) {
+    val columnWidth = (tileSizeOverride?.let { it + 2f } ?: 82f).dp
+    val tileSize = (tileSizeOverride ?: 72f).dp
+    val iconSize = ((tileSizeOverride ?: 72f) * 40f / 72f).dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
-            .width(82.dp)
+            .width(columnWidth)
             .clickable { onClick() }
             .padding(vertical = 4.dp, horizontal = 2.dp)
     ) {
@@ -764,29 +809,32 @@ private fun PremiumQuickAccessButton(
             Image(
                 painter = painterResource(id = premiumTileRes),
                 contentDescription = label,
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(tileSize)
             )
         } else {
             Box(
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(tileSize),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(iconSize),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
                 )
             }
         }
         Spacer(modifier = Modifier.height(6.dp))
+        val labelSize = LocalTileLabelFontSize.current.sp
+        val labelColor = parseHexColorOrNull(LocalTileLabelColor.current)
+            ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
         Text(
             text = label,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            fontSize = labelSize,
+            color = labelColor,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
-            lineHeight = 13.sp
+            lineHeight = labelSize * 1.2f
         )
     }
 }

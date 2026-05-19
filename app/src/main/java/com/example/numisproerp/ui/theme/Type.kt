@@ -4,10 +4,12 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.Font as GFont
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.Font as LocalFont
 import com.numisproerp.R
 
 /**
@@ -29,10 +31,42 @@ private val googleFontsProvider = GoogleFont.Provider(
 private fun gFontFamily(name: String): FontFamily {
     val gFont = GoogleFont(name)
     return FontFamily(
-        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Normal),
-        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Medium),
-        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.SemiBold),
-        Font(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Bold)
+        GFont(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Normal),
+        GFont(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Medium),
+        GFont(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.SemiBold),
+        GFont(googleFont = gFont, fontProvider = googleFontsProvider, weight = FontWeight.Bold)
+    )
+}
+
+/**
+ * Будує [FontFamily] для варіативного шрифту, запакованого в `res/font/`.
+ * Один файл TTF підтримує розряд wght (400/500/600/700) через
+ * [FontVariation.weight]. Працює повністю офлайн — не вимагає Google Play Services.
+ */
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+private fun variableFontFamily(resId: Int): FontFamily {
+    return FontFamily(
+        LocalFont(resId, weight = FontWeight.Normal,
+            variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+        LocalFont(resId, weight = FontWeight.Medium,
+            variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+        LocalFont(resId, weight = FontWeight.SemiBold,
+            variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+        LocalFont(resId, weight = FontWeight.Bold,
+            variationSettings = FontVariation.Settings(FontVariation.weight(700)))
+    )
+}
+
+/**
+ * Будує [FontFamily] з окремих TTF файлів на Regular та Bold. Для фонтів,
+ * у яких немає варіативного файлу (як Poppins).
+ */
+private fun staticFontFamily(regularResId: Int, boldResId: Int): FontFamily {
+    return FontFamily(
+        LocalFont(regularResId, weight = FontWeight.Normal),
+        LocalFont(regularResId, weight = FontWeight.Medium),
+        LocalFont(boldResId, weight = FontWeight.SemiBold),
+        LocalFont(boldResId, weight = FontWeight.Bold)
     )
 }
 
@@ -44,27 +78,49 @@ private fun gFontFamily(name: String): FontFamily {
 data class FontOption(val key: String, val displayName: String, val familyName: String)
 
 /**
- * Google Fonts, які користувач може обрати, разом із системними сімействами.
- * Порядок відповідає тому, як вони показуються у [FontsDialog].
+ * Офлайн-шрифти, бандлаться разом із застосунком (файли в `res/font/`).
+ * Не вимагають Google Play Services / інтернету — працюють однаково
+ * на будь-якому пристрої. Користувач бачить їх як секцію "Офлайн" у виборі шрифту.
+ */
+val OfflineFontOptions: List<FontOption> = listOf(
+    FontOption("offline-poppins", "Poppins (офлайн)", "Poppins"),
+    FontOption("offline-montserrat", "Montserrat (офлайн)", "Montserrat"),
+    FontOption("offline-open-sans", "Open Sans (офлайн)", "Open Sans"),
+    FontOption("offline-nunito", "Nunito (офлайн)", "Nunito"),
+    FontOption("offline-lora", "Lora (офлайн)", "Lora"),
+    FontOption("offline-playfair", "Playfair Display (офлайн)", "Playfair Display"),
+)
+
+/**
+ * Google Fonts, які користувач може обрати як опцію з інтернету. На пристроях
+ * без Google Play Services вони відображатимуться системним фолбек-шрифтом.
  */
 val GoogleFontOptions: List<FontOption> = listOf(
-    FontOption("roboto", "Roboto", "Roboto"),
-    FontOption("montserrat", "Montserrat", "Montserrat"),
-    FontOption("inter", "Inter", "Inter"),
-    FontOption("lora", "Lora", "Lora"),
-    FontOption("playfair", "Playfair Display", "Playfair Display"),
-    FontOption("poppins", "Poppins", "Poppins"),
-    FontOption("nunito", "Nunito", "Nunito"),
-    FontOption("open-sans", "Open Sans", "Open Sans"),
+    FontOption("roboto", "Roboto (онлайн)", "Roboto"),
+    FontOption("montserrat", "Montserrat (онлайн)", "Montserrat"),
+    FontOption("inter", "Inter (онлайн)", "Inter"),
+    FontOption("lora", "Lora (онлайн)", "Lora"),
+    FontOption("playfair", "Playfair Display (онлайн)", "Playfair Display"),
+    FontOption("poppins", "Poppins (онлайн)", "Poppins"),
+    FontOption("nunito", "Nunito (онлайн)", "Nunito"),
+    FontOption("open-sans", "Open Sans (онлайн)", "Open Sans"),
 )
 
 /**
  * Перетворює ключ шрифту з налаштувань на [FontFamily] для Compose.
- * Підтримуються системні сімейства (system / sans-serif / serif / monospace)
- * та Google Fonts з [GoogleFontOptions].
+ * Порядок перевірки:
+ *  1) `offline-*` — бандл шрифт з `res/font/` (працює без інтернету).
+ *  2) системні сімейства (system / sans-serif / serif / monospace).
+ *  3) Google Fonts з [GoogleFontOptions] (потребують інтернет і Google Play Services).
  */
 fun fontFamilyOf(key: String?): FontFamily {
     return when (key) {
+        "offline-poppins" -> staticFontFamily(R.font.poppins_regular, R.font.poppins_bold)
+        "offline-montserrat" -> variableFontFamily(R.font.montserrat_variable)
+        "offline-open-sans" -> variableFontFamily(R.font.open_sans_variable)
+        "offline-nunito" -> variableFontFamily(R.font.nunito_variable)
+        "offline-lora" -> variableFontFamily(R.font.lora_variable)
+        "offline-playfair" -> variableFontFamily(R.font.playfair_display_variable)
         "serif" -> FontFamily.Serif
         "sans-serif" -> FontFamily.SansSerif
         "monospace" -> FontFamily.Monospace
