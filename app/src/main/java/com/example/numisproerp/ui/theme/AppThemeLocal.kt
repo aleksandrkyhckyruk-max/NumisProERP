@@ -1,7 +1,9 @@
 package com.numisproerp.ui.theme
 
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import com.numisproerp.data.settings.AppTheme
 import com.numisproerp.data.settings.SettingsManager
 
@@ -210,3 +212,56 @@ val LocalBottomBarOpacity = compositionLocalOf { SettingsManager.DEFAULT_BAR_OPA
  * Прозорість фону бічного меню (0.2..1.0). 1.0 — повністю непрозорий.
  */
 val LocalDrawerOpacity = compositionLocalOf { SettingsManager.DEFAULT_BAR_OPACITY }
+
+/**
+ * Налаштування тіні для основних текстів на робочому столі. Якщо `enabled=false` —
+ * тінь не застосовується (стандартний вигляд). Інші поля інтерпретуються
+ * під час побудови [androidx.compose.ui.graphics.Shadow].
+ */
+data class TextShadowConfig(
+    val enabled: Boolean,
+    val colorHex: String,
+    val offsetX: Float,
+    val offsetY: Float,
+    val opacity: Float,
+    val blurRadius: Float
+) {
+    companion object {
+        val Disabled = TextShadowConfig(
+            enabled = false,
+            colorHex = SettingsManager.DEFAULT_TEXT_SHADOW_COLOR,
+            offsetX = SettingsManager.DEFAULT_TEXT_SHADOW_OFFSET,
+            offsetY = SettingsManager.DEFAULT_TEXT_SHADOW_OFFSET,
+            opacity = SettingsManager.DEFAULT_TEXT_SHADOW_OPACITY,
+            blurRadius = SettingsManager.DEFAULT_TEXT_SHADOW_RADIUS
+        )
+    }
+}
+
+/**
+ * Поточне налаштування тіні тексту. Заповнюється з SettingsManager у
+ * `NumisProERPTheme`. За замовчуванням — вимкнено.
+ */
+val LocalTextShadowConfig = compositionLocalOf { TextShadowConfig.Disabled }
+
+/**
+ * Перетворює поточну конфігурацію тіні у Compose-обʼєкт [Shadow] для застосування
+ * через `TextStyle.copy(shadow = ...)`. Повертає `null`, якщо тінь вимкнена або
+ * фактично невидима (повністю прозора + нульовий зсув і радіус), щоб не
+ * платити за зайвий шейдинг у Skia.
+ *
+ * Координати множаться на щільність екрана, що передається ззовні, щоб
+ * dp з налаштувань трансформувалися у px, які очікує Skia.
+ */
+fun TextShadowConfig.toComposeShadow(density: Float): Shadow? {
+    if (!enabled) return null
+    val color = runCatching {
+        Color(android.graphics.Color.parseColor("#" + colorHex.ifBlank { SettingsManager.DEFAULT_TEXT_SHADOW_COLOR }))
+    }.getOrDefault(Color.Black).copy(alpha = opacity.coerceIn(0f, 1f))
+    if (color.alpha == 0f && blurRadius == 0f && offsetX == 0f && offsetY == 0f) return null
+    return Shadow(
+        color = color,
+        offset = Offset(offsetX * density, offsetY * density),
+        blurRadius = (blurRadius * density).coerceAtLeast(0f)
+    )
+}

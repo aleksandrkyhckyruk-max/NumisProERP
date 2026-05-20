@@ -36,15 +36,31 @@ class NotificationsViewModel @Inject constructor(
      *  - `Flow<List<ProductWithStock>>` з repository (оновлюється автоматично
      *     при будь-якій зміні складу — закупівля / продаж / списання);
      *  - `Flow<Int>` поточного порогу з SettingsManager (миттєво пересортовує
-     *     warning-and-critical розподіл при зміні слайдера у Налаштуваннях).
+     *     warning-and-critical розподіл при зміні слайдера у Налаштуваннях);
+     *  - `Flow<Set<String>>` відхилених сповіщень — користувач може «приховати»
+     *     прочитане повідомлення (свайп або «Очистити все»), щоб воно не заважало,
+     *     поки реальні умови складу не змінилися.
+     *
+     * Ідентифікатори:
+     *  - `out_<catalogId>_<totalPurchased>` — товар повністю вичерпаний; до id
+     *    додано загальну кількість закуплених одиниць, щоб після поповнення
+     *    (totalPurchased зросте) і повторного вичерпання згенерувався новий
+     *    id, не присутній у dismissed-сеті. Інакше після першого приховування
+     *    сповіщення зникало б назавжди, навіть після повного циклу
+     *    «поповнили → знову закінчилося».
+     *  - `low_<catalogId>_<stock>` — кількість входить у поточний поріг; до id
+     *    додано фактичний залишок, щоб після зміни залишку (наприклад, ще один
+     *    продаж знизив його) ми згенерували новий id, який не вважається
+     *    відхиленим (користувач знову побачить попередження).
      *
      * Завдяки `stateIn(WhileSubscribed)` обчислення зупиняється, коли
      * жоден підписник не активний (TopBar з дашборду + NotificationsScreen).
      */
     val notifications: StateFlow<List<NotificationItem>> = combine(
         repository.getProductsWithStock(""),
-        snapshotFlow { settingsManager.lowStockThreshold }
-    ) { productsWithStock, threshold ->
+        snapshotFlow { settingsManager.lowStockThreshold },
+        snapshotFlow { settingsManager.dismissedNotificationsState.value }
+    ) { productsWithStock, threshold, dismissed ->
         val items = mutableListOf<NotificationItem>()
 
         // Out of stock — товари, які раніше були закуплені, але повністю вичерпані
@@ -53,7 +69,7 @@ class NotificationsViewModel @Inject constructor(
             .forEach { p ->
                 items.add(
                     NotificationItem(
-                        id = "out_${p.catalogId}",
+                        id = "out_${p.catalogId}_${p.totalPurchased}",
                         titleUa = "Закінчився товар: ${p.name}",
                         titleEn = "Out of stock: ${p.name}",
                         descriptionUa = "Залишок 0. Розгляньте можливість поповнення.",
@@ -70,7 +86,7 @@ class NotificationsViewModel @Inject constructor(
                 .forEach { p ->
                     items.add(
                         NotificationItem(
-                            id = "low_${p.catalogId}",
+                            id = "low_${p.catalogId}_${p.currentStock}",
                             titleUa = "Низький залишок: ${p.name}",
                             titleEn = "Low stock: ${p.name}",
                             descriptionUa = "Залишилось ${p.currentStock} шт.",
@@ -80,10 +96,22 @@ class NotificationsViewModel @Inject constructor(
                     )
                 }
         }
-        items
+        items.filter { it.id !in dismissed }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = emptyList()
     )
+
+    fun dismiss(id: String) {
+        settingsManager.dismissNotification(id)
+    }
+
+    fun dismissAll(ids: Collection<String>) {
+        settingsManager.dismissNotifications(ids)
+    }
+
+    fun restoreAll() {
+        settingsManager.restoreAllNotifications()
+    }
 }

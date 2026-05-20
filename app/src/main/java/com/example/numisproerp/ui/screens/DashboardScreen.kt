@@ -77,10 +77,13 @@ import com.numisproerp.ui.theme.LocalInfoCardBackgroundAlpha
 import com.numisproerp.ui.theme.LocalInfoCardBackgroundColor
 import com.numisproerp.ui.theme.LocalTileBackgroundAlpha
 import com.numisproerp.ui.theme.LocalTileBackgroundColor
+import com.numisproerp.ui.theme.LocalTextShadowConfig
 import com.numisproerp.ui.theme.LocalTileIconSize
 import com.numisproerp.ui.theme.LocalUserTilePhotos
 import com.numisproerp.ui.theme.OlegPremiumTitleCoral
 import com.numisproerp.ui.theme.parseHexColorOrNull
+import com.numisproerp.ui.theme.toComposeShadow
+import androidx.compose.ui.platform.LocalDensity
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.layout.ContentScale
@@ -243,6 +246,7 @@ private fun DashboardHeader(currentDate: String) {
         val titleText = if (userTitle.isNotBlank()) userTitle else defaultTitleText
         val resolvedTitleColor = parseHexColorOrNull(titleColorHex)
             ?: MaterialTheme.colorScheme.primary
+        val titleShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -255,23 +259,22 @@ private fun DashboardHeader(currentDate: String) {
                 modifier = Modifier.offset(x = offsetX, y = offsetY)
             )
             Spacer(modifier = Modifier.width(12.dp))
+            // Підпис "NumisProERP — облік та каталогізація" прибрано на прохання користувача:
+            // він візуально шумить біля основного заголовка. Дата залишається.
             Column {
                 Text(
                     text = titleText,
                     fontSize = titleSizeSp,
                     fontWeight = FontWeight.Bold,
                     color = resolvedTitleColor,
+                    style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
                     modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
-                )
-                Text(
-                    text = tr("NumisProERP — облік та каталогізація", "NumisProERP — accounting & catalog"),
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
                 Text(
                     text = currentDate,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodyMedium.copy(shadow = titleShadow),
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
@@ -280,23 +283,21 @@ private fun DashboardHeader(currentDate: String) {
         val titleText = if (userTitle.isNotBlank()) userTitle else "NumisProERP"
         val resolvedTitleColor = parseHexColorOrNull(titleColorHex)
             ?: MaterialTheme.colorScheme.primary
+        val titleShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
         Column {
             Text(
                 text = titleText,
                 fontSize = titleSizeSp,
                 fontWeight = FontWeight.Bold,
                 color = resolvedTitleColor,
+                style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
                 modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
-            )
-            Text(
-                text = tr("Облік та каталогізація", "Accounting & catalog"),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
             Text(
                 text = currentDate,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                style = MaterialTheme.typography.bodyMedium.copy(shadow = titleShadow),
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
@@ -354,6 +355,7 @@ private fun PremiumDashboardHeader(currentDate: String) {
     val titleOffsetY = LocalDashboardTitleOffsetY.current.dp
     val userTitleColor = parseHexColorOrNull(titleColorHex)
     val titleOffsetModifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
+    val shadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -366,6 +368,8 @@ private fun PremiumDashboardHeader(currentDate: String) {
                 .offset(x = offsetX, y = offsetY)
         )
         Spacer(modifier = Modifier.width(12.dp))
+        // Підпис "Облік та автоматизація" прибрано на прохання користувача — він
+        // дублював інформацію, яка вже зрозуміла з контексту головного меню.
         Column {
             if (userTitle.isNotBlank()) {
                 Text(
@@ -373,6 +377,7 @@ private fun PremiumDashboardHeader(currentDate: String) {
                     fontSize = titleSizeSp,
                     fontWeight = FontWeight.Bold,
                     color = userTitleColor ?: OlegPremiumTitleCoral,
+                    style = MaterialTheme.typography.bodyLarge.copy(shadow = shadow),
                     modifier = titleOffsetModifier
                 )
             } else {
@@ -384,25 +389,23 @@ private fun PremiumDashboardHeader(currentDate: String) {
                         text = "NumisPro",
                         fontSize = titleSizeSp,
                         fontWeight = FontWeight.Bold,
-                        color = userTitleColor ?: OlegPremiumTitleCoral
+                        color = userTitleColor ?: OlegPremiumTitleCoral,
+                        style = MaterialTheme.typography.bodyLarge.copy(shadow = shadow)
                     )
                     Text(
                         text = "ERP",
                         fontSize = titleSizeSp,
                         fontWeight = FontWeight.Bold,
-                        color = userTitleColor ?: MaterialTheme.colorScheme.primary
+                        color = userTitleColor ?: MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyLarge.copy(shadow = shadow)
                     )
                 }
             }
             Text(
-                text = tr("Облік та автоматизація", "Accounting & automation"),
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-            Text(
                 text = currentDate,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                style = MaterialTheme.typography.bodyMedium.copy(shadow = shadow),
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
@@ -501,11 +504,13 @@ fun MonthlyStatCardClickable(
 fun SectionHeader(title: String) {
     val sizeSp = LocalDashboardHeaderFontSize.current
     val customColor = parseHexColorOrNull(LocalDashboardHeaderColor.current)
+    val shadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
     Text(
         text = title,
         fontSize = sizeSp.sp,
         fontWeight = FontWeight.SemiBold,
-        color = customColor ?: MaterialTheme.colorScheme.onSurface
+        color = customColor ?: MaterialTheme.colorScheme.onSurface,
+        style = MaterialTheme.typography.titleMedium.copy(shadow = shadow)
     )
 }
 
@@ -796,13 +801,15 @@ fun QuickAccessButton(
         val labelSize = LocalTileLabelFontSize.current.sp
         val labelColor = parseHexColorOrNull(LocalTileLabelColor.current)
             ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+        val labelShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
         Text(
             text = label,
             fontSize = labelSize,
             color = labelColor,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
-            lineHeight = labelSize * 1.2f
+            lineHeight = labelSize * 1.2f,
+            style = MaterialTheme.typography.bodySmall.copy(shadow = labelShadow)
         )
     }
 }
@@ -881,13 +888,15 @@ private fun PremiumQuickAccessButton(
         val labelSize = LocalTileLabelFontSize.current.sp
         val labelColor = parseHexColorOrNull(LocalTileLabelColor.current)
             ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+        val labelShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
         Text(
             text = label,
             fontSize = labelSize,
             color = labelColor,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
-            lineHeight = labelSize * 1.2f
+            lineHeight = labelSize * 1.2f,
+            style = MaterialTheme.typography.bodySmall.copy(shadow = labelShadow)
         )
     }
 }
