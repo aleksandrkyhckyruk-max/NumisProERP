@@ -245,6 +245,31 @@ data class TextShadowConfig(
 val LocalTextShadowConfig = compositionLocalOf { TextShadowConfig.Disabled }
 
 /**
+ * Кількість колонок у сітці плиток головного екрана. Дозволені значення —
+ * див. `SettingsManager.ALLOWED_TILE_GRID_PRESETS`. За замовчуванням — 3.
+ */
+val LocalTileGridColumns = compositionLocalOf { SettingsManager.DEFAULT_TILE_GRID_COLUMNS }
+
+/**
+ * Кількість рядків у сітці плиток головного екрана. За замовчуванням — 2,
+ * сукупно 6 плиток як у попередньому релізі.
+ */
+val LocalTileGridRows = compositionLocalOf { SettingsManager.DEFAULT_TILE_GRID_ROWS }
+
+/**
+ * Список actionId плиток у порядку, в якому користувач хоче бачити їх на
+ * головному екрані. Якщо id невідомий — він ігнорується при рендерингу.
+ */
+val LocalTileOrder = compositionLocalOf<List<String>> { SettingsManager.DEFAULT_TILE_ORDER }
+
+/**
+ * Користувацькі перейменовані назви плиток (actionId -> назва). Якщо ключа
+ * немає або значення порожнє — використовується стандартна назва з
+ * `QuickAccessActionRegistry`.
+ */
+val LocalTileLabels = compositionLocalOf<Map<String, String>> { emptyMap() }
+
+/**
  * Перетворює поточну конфігурацію тіні у Compose-обʼєкт [Shadow] для застосування
  * через `TextStyle.copy(shadow = ...)`. Повертає `null`, якщо тінь вимкнена або
  * фактично невидима (повністю прозора + нульовий зсув і радіус), щоб не

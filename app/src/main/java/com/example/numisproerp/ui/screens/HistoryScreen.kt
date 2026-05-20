@@ -23,6 +23,8 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.outlined.RemoveCircle
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +42,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -222,64 +226,126 @@ private fun HistorySummaryCard(entries: List<HistoryEntry>) {
 @Composable
 private fun HistoryRow(entry: HistoryEntry) {
     val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
+    val dayFormat = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
     val (icon: ImageVector, color: Color) = when (entry.type) {
         HistoryEntryType.PURCHASE -> Icons.Outlined.ShoppingCart to AccentBlue
         HistoryEntryType.SALE -> Icons.Outlined.Sell to AccentGreen
         HistoryEntryType.WRITEOFF -> Icons.Outlined.RemoveCircle to AccentRed
         HistoryEntryType.EXPENSE -> Icons.Default.MoneyOff to AccentOrange
     }
+    // Згрупована «чека» закупівлі: якщо є subEntries, показуємо рядок
+    // з лічильником позицій і кнопкою розгорнути. Групуються лише закупівлі
+    // від одного постачальника в той самий день — аналогічно чеку продажу.
+    val grouped = entry.subEntries.isNotEmpty()
+    var expanded by remember(entry.id) { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IOSIconChip(icon = icon, tint = color)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                val localTypeLabel = when (entry.type) {
-                    HistoryEntryType.PURCHASE -> tr("Закупівля", "Purchase")
-                    HistoryEntryType.SALE -> tr("Продаж", "Sale")
-                    HistoryEntryType.WRITEOFF -> tr("Списання", "Writeoff")
-                    HistoryEntryType.EXPENSE -> tr("Витрата", "Expense")
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .let { mod ->
+                        if (grouped) mod.clickable { expanded = !expanded } else mod
+                    }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IOSIconChip(icon = icon, tint = color)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    val localTypeLabel = when (entry.type) {
+                        HistoryEntryType.PURCHASE -> tr("Закупівля", "Purchase")
+                        HistoryEntryType.SALE -> tr("Продаж", "Sale")
+                        HistoryEntryType.WRITEOFF -> tr("Списання", "Writeoff")
+                        HistoryEntryType.EXPENSE -> tr("Витрата", "Expense")
+                    }
+                    val titleSuffix = when {
+                        grouped -> " • " + tr("${entry.quantity ?: entry.subEntries.size} позицій", "${entry.quantity ?: entry.subEntries.size} items")
+                        entry.productName.isNotEmpty() -> " • ${entry.productName}"
+                        else -> ""
+                    }
+                    Text(
+                        text = localTypeLabel + titleSuffix,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                    if (entry.counterparty.isNotEmpty()) {
+                        val cpSuffix = if (grouped) ""
+                            else entry.quantity?.let { " • $it ${tr("шт.", "pcs")}" } ?: ""
+                        Text(
+                            text = entry.counterparty + cpSuffix,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                    if (entry.comment.isNotEmpty()) {
+                        Text(
+                            text = entry.comment,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Text(
+                        text = if (grouped) dayFormat.format(Date(entry.date))
+                            else dateFormat.format(Date(entry.date)),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
                 }
+                val sign = if (entry.sign > 0) "+" else "-"
                 Text(
-                    text = localTypeLabel + if (entry.productName.isNotEmpty()) " • ${entry.productName}" else "",
+                    text = "$sign${String.format("%,.2f", entry.amount)} ₴",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
+                    color = if (entry.sign > 0) AccentGreen else AccentRed
                 )
-                if (entry.counterparty.isNotEmpty()) {
-                    Text(
-                        text = entry.counterparty + (entry.quantity?.let { " • $it ${tr("шт.", "pcs")}" } ?: ""),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                if (grouped) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) tr("Згорнути", "Collapse") else tr("Розгорнути", "Expand"),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
-                if (entry.comment.isNotEmpty()) {
-                    Text(
-                        text = entry.comment,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Text(
-                    text = dateFormat.format(Date(entry.date)),
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
             }
-            val sign = if (entry.sign > 0) "+" else "-"
-            Text(
-                text = "$sign${String.format("%,.2f", entry.amount)} ₴",
-                fontWeight = FontWeight.Bold,
-                color = if (entry.sign > 0) AccentGreen else AccentRed
-            )
+            if (grouped && expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 56.dp, end = 14.dp, bottom = 12.dp)
+                ) {
+                    entry.subEntries.forEach { child ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = child.productName.ifBlank { tr("Позиція", "Item") },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = dateFormat.format(Date(child.date)),
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
+                            Text(
+                                text = "-${String.format("%,.2f", child.amount)} ₴",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = AccentRed
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

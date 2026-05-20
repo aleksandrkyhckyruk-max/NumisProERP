@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.LocalAtm
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -183,6 +184,10 @@ class MainActivity : ComponentActivity() {
                 opacity = textShadowOpacity,
                 blurRadius = textShadowRadius
             )
+            val tileGridColumns by settingsManager.tileGridColumnsState
+            val tileGridRows by settingsManager.tileGridRowsState
+            val tileOrder by settingsManager.tileOrderState
+            val tileLabels by settingsManager.tileLabelsState
             var splashFinished by rememberSaveable { mutableStateOf(false) }
             NumisProERPTheme(
                 appTheme = theme,
@@ -218,7 +223,11 @@ class MainActivity : ComponentActivity() {
                 drawerColorHex = drawerColor,
                 drawerBrightness = drawerBrightness,
                 drawerOpacity = drawerOpacity,
-                textShadowConfig = textShadowConfig
+                textShadowConfig = textShadowConfig,
+                tileGridColumns = tileGridColumns,
+                tileGridRows = tileGridRows,
+                tileOrder = tileOrder,
+                tileLabels = tileLabels
             ) {
                 CompositionLocalProvider(LocalAppLanguage provides language) {
                     Surface(
@@ -250,14 +259,23 @@ fun NumisProERPNavigation() {
 
     val showBars = currentRoute == Screen.Dashboard.route
 
+    // У боковому меню тримаємо ПОВНИЙ перелік розділів додатка. Користувач явно
+    // попросив, щоб «всі кнопки, які є, були в боковому меню» — тому навіть ті,
+    // що дублюються плитками головного екрана (Закупівля/Продаж/Склад/тощо),
+    // лишаються тут як єдина точка навігації.
     val drawerItems = listOf(
         DrawerItem(tr("Головне меню", "Home"), Screen.Dashboard.route, false, Icons.Default.Home),
+        DrawerItem(tr("Закупівля", "Purchase"), Screen.Purchase.route, false, Icons.Outlined.LocalAtm),
+        DrawerItem(tr("Продаж", "Sale"), Screen.Sale.route, false, Icons.Default.ShoppingCart),
+        DrawerItem(tr("Склад", "Stock"), Screen.Stock.route, false, Icons.Default.Store),
+        DrawerItem(tr("Каталог", "Catalog"), Screen.Catalog.route, false, Icons.Default.Store),
+        DrawerItem(tr("Моя збірка", "My Bundle"), Screen.MyBundle.route, false, Icons.Default.Build),
+        DrawerItem(tr("Моя колекція", "My Collection"), Screen.MyCollection.route, false, Icons.Outlined.BarChart),
         // "Додати товар" відкриває екран "Товари" з одразу розгорнутим діалогом
         // ручного додавання товару в каталог (без переходу в "Закупівлю" і без Excel).
         DrawerItem(tr("Додати товар", "Add product"), Screen.Products.routeWithOpenAdd(true), false, Icons.Default.Add),
         DrawerItem(tr("Товари", "Products"), Screen.Products.route, false, Icons.Outlined.Inventory2),
         DrawerItem(tr("Мої замітки", "My Notes"), Screen.MyNotes.route, false, Icons.Outlined.Edit),
-        // "Моя збірка" винесено в нижню панель навігації — між "Каталог" і "Склад".
         DrawerItem(tr("Історія продажів", "Sales History"), Screen.SalesHistory.route, false, Icons.Outlined.Sell),
         DrawerItem(tr("Документи", "Documents"), Screen.Documents.route, false, Icons.Outlined.Description),
         DrawerItem(tr("Витрати", "Expenses"), Screen.Expenses.route, false, Icons.Outlined.Receipt),
@@ -266,6 +284,8 @@ fun NumisProERPNavigation() {
         DrawerItem(tr("Клієнти", "Clients"), Screen.Clients.route, false, Icons.Default.People),
         DrawerItem(tr("Списання", "Writeoff"), Screen.Writeoff.route, false, Icons.Outlined.Delete),
         DrawerItem(tr("Історія", "History"), Screen.History.route, false, Icons.Outlined.History),
+        DrawerItem(tr("Сповіщення", "Notifications"), Screen.Notifications.route, false, Icons.Default.Notifications),
+        DrawerItem(tr("Допомога", "Help"), Screen.Help.route, false, Icons.AutoMirrored.Outlined.Help),
         DrawerItem(tr("Налаштування", "Settings"), Screen.Settings.route, false, Icons.Default.Settings)
     )
     val sectionInDevText = tr("Розділ в розробці", "Section in development")

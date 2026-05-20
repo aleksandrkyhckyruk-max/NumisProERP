@@ -92,19 +92,18 @@ val OfflineFontOptions: List<FontOption> = listOf(
 )
 
 /**
- * Google Fonts, які користувач може обрати як опцію з інтернету. На пристроях
- * без Google Play Services вони відображатимуться системним фолбек-шрифтом.
+ * Google Fonts раніше були списком з 8 онлайн-шрифтів, але на практиці вони
+ * вимагають Google Play Services + інтернет — на пристроях без сервісів Google
+ * (або без сертифіката від GMS) шрифт ніколи не завантажується і просто
+ * віддає системний фолбек-шрифт, що користувач сприймав як «нічого не робиться».
+ *
+ * Тому в UI вибору шрифту ми залишили лише `OfflineFontOptions` (TTF у `res/font/`).
+ * Сам список тут лишається порожнім, щоб не зламати збережені користувацькі
+ * ключі: `fontFamilyOf("roboto"|...)` нижче все одно поверне коректний
+ * `FontFamily.Default`, тобто додаток не впаде, якщо у SharedPreferences
+ * лежить старий онлайн-ключ.
  */
-val GoogleFontOptions: List<FontOption> = listOf(
-    FontOption("roboto", "Roboto (онлайн)", "Roboto"),
-    FontOption("montserrat", "Montserrat (онлайн)", "Montserrat"),
-    FontOption("inter", "Inter (онлайн)", "Inter"),
-    FontOption("lora", "Lora (онлайн)", "Lora"),
-    FontOption("playfair", "Playfair Display (онлайн)", "Playfair Display"),
-    FontOption("poppins", "Poppins (онлайн)", "Poppins"),
-    FontOption("nunito", "Nunito (онлайн)", "Nunito"),
-    FontOption("open-sans", "Open Sans (онлайн)", "Open Sans"),
-)
+val GoogleFontOptions: List<FontOption> = emptyList()
 
 /**
  * Перетворює ключ шрифту з налаштувань на [FontFamily] для Compose.
