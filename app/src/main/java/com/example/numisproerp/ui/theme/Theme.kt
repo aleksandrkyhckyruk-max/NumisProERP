@@ -205,6 +205,7 @@ fun NumisProERPTheme(
     drawerColorHex: String = "",
     drawerBrightness: Float = 0f,
     drawerOpacity: Float = SettingsManager.DEFAULT_BAR_OPACITY,
+    textShadowConfig: TextShadowConfig = TextShadowConfig.Disabled,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
@@ -276,7 +277,8 @@ fun NumisProERPTheme(
         LocalBottomBarOpacity provides bottomBarOpacity,
         LocalDrawerColor provides drawerColorHex,
         LocalDrawerBrightness provides drawerBrightness,
-        LocalDrawerOpacity provides drawerOpacity
+        LocalDrawerOpacity provides drawerOpacity,
+        LocalTextShadowConfig provides textShadowConfig
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

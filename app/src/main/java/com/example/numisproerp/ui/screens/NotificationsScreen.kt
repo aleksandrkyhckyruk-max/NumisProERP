@@ -17,7 +17,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Card
@@ -26,12 +29,17 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,7 +87,29 @@ fun NotificationsScreen(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.size(48.dp))
+            // Дві іконки в правому куті: «Очистити всі видимі» (DeleteSweep) і
+            // «Повернути приховані» (Restore). Друга має сенс, лише коли є що
+            // повертати — інакше зайва іконка лише захаращує панель.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (notifications.isNotEmpty()) {
+                    IconButton(onClick = {
+                        viewModel.dismissAll(notifications.map { it.id })
+                    }) {
+                        Icon(
+                            Icons.Filled.DeleteSweep,
+                            contentDescription = tr("Очистити всі", "Clear all"),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                IconButton(onClick = { viewModel.restoreAll() }) {
+                    Icon(
+                        Icons.Filled.Restore,
+                        contentDescription = tr("Повернути приховані", "Restore dismissed"),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
         }
 
         if (notifications.isEmpty()) {
@@ -105,8 +135,8 @@ fun NotificationsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = tr(
-                        "Сповіщення з'являться, коли товар буде закінчуватися на складі.",
-                        "Notifications will appear when a product is running low in stock."
+                        "Свайпніть сповіщення, щоб приховати його. Воно зʼявиться знову, коли стан складу зміниться.",
+                        "Swipe a notification to dismiss it. It will reappear when stock changes."
                     ),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
@@ -120,10 +150,76 @@ fun NotificationsScreen(
                     .padding(top = 72.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(notifications) { notification ->
-                    NotificationCard(notification)
+                items(notifications, key = { it.id }) { notification ->
+                    SwipeableNotificationCard(
+                        notification = notification,
+                        onDismiss = { viewModel.dismiss(notification.id) }
+                    )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Загортає [NotificationCard] у [SwipeToDismissBox] з підтримкою свайпу
+ * в обидва боки. Фоном при свайпі — червоний прямокутник з іконкою кошика,
+ * щоб користувач бачив, що дія — «видалити з UI», а не «архівувати».
+ *
+ * Після завершення анімації свайпу викликаємо `onDismiss()`. Жест підтримує
+ * лише видимий рух у спокій (`Settled`) — коротка прокрутка повертає картку
+ * на місце і не змінює стан.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableNotificationCard(
+    notification: NotificationItem,
+    onDismiss: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { target ->
+            target == SwipeToDismissBoxValue.StartToEnd ||
+                target == SwipeToDismissBoxValue.EndToStart
+        }
+    )
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+            onDismiss()
+        }
+    }
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = { SwipeDismissBackground() },
+        content = { NotificationCard(notification) }
+    )
+}
+
+@Composable
+private fun SwipeDismissBackground() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clip(RoundedCornerShape(IOSDesign.CardCornerRadius))
+            .background(AccentRed.copy(alpha = 0.85f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = null,
+                tint = androidx.compose.ui.graphics.Color.White
+            )
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = null,
+                tint = androidx.compose.ui.graphics.Color.White
+            )
         }
     }
 }

@@ -506,6 +506,140 @@ class SettingsManager @Inject constructor(
             prefs.edit().putFloat(KEY_INFO_CARD_BG_ALPHA, clamped).apply()
         }
 
+    // ==================== ТІНІ ТЕКСТУ ====================
+    // Глобальне налаштування тіні для основних текстів на робочому столі
+    // (заголовок головного екрана, підписи плиток, заголовки секцій).
+    // Дозволяє зробити текст читабельним на будь-якому фоні — на світлих фото
+    // ставимо темну тінь, на темних — світлу. Якщо `enabled = false` — текст
+    // рендериться без тіні (старий вигляд).
+
+    private val _textShadowEnabled: MutableState<Boolean> =
+        mutableStateOf(prefs.getBoolean(KEY_TEXT_SHADOW_ENABLED, false))
+
+    val textShadowEnabledState: MutableState<Boolean>
+        get() = _textShadowEnabled
+
+    var textShadowEnabled: Boolean
+        get() = _textShadowEnabled.value
+        set(value) {
+            _textShadowEnabled.value = value
+            prefs.edit().putBoolean(KEY_TEXT_SHADOW_ENABLED, value).apply()
+        }
+
+    // Колір тіні у hex без `#`. За замовчуванням — чорний, як стандартний drop shadow.
+    private val _textShadowColor: MutableState<String> =
+        mutableStateOf(prefs.getString(KEY_TEXT_SHADOW_COLOR, DEFAULT_TEXT_SHADOW_COLOR) ?: DEFAULT_TEXT_SHADOW_COLOR)
+
+    val textShadowColorState: MutableState<String>
+        get() = _textShadowColor
+
+    var textShadowColor: String
+        get() = _textShadowColor.value
+        set(value) {
+            _textShadowColor.value = value
+            prefs.edit().putString(KEY_TEXT_SHADOW_COLOR, value).apply()
+        }
+
+    // Зсув тіні по горизонталі/вертикалі у dp. Дозволяє контролювати «куди падає тінь».
+    private val _textShadowOffsetX: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_TEXT_SHADOW_OFFSET_X, DEFAULT_TEXT_SHADOW_OFFSET)
+            .coerceIn(MIN_TEXT_SHADOW_OFFSET, MAX_TEXT_SHADOW_OFFSET))
+
+    val textShadowOffsetXState: MutableState<Float>
+        get() = _textShadowOffsetX
+
+    var textShadowOffsetX: Float
+        get() = _textShadowOffsetX.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_TEXT_SHADOW_OFFSET, MAX_TEXT_SHADOW_OFFSET)
+            _textShadowOffsetX.value = clamped
+            prefs.edit().putFloat(KEY_TEXT_SHADOW_OFFSET_X, clamped).apply()
+        }
+
+    private val _textShadowOffsetY: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_TEXT_SHADOW_OFFSET_Y, DEFAULT_TEXT_SHADOW_OFFSET)
+            .coerceIn(MIN_TEXT_SHADOW_OFFSET, MAX_TEXT_SHADOW_OFFSET))
+
+    val textShadowOffsetYState: MutableState<Float>
+        get() = _textShadowOffsetY
+
+    var textShadowOffsetY: Float
+        get() = _textShadowOffsetY.value
+        set(value) {
+            val clamped = value.coerceIn(MIN_TEXT_SHADOW_OFFSET, MAX_TEXT_SHADOW_OFFSET)
+            _textShadowOffsetY.value = clamped
+            prefs.edit().putFloat(KEY_TEXT_SHADOW_OFFSET_Y, clamped).apply()
+        }
+
+    // Прозорість тіні (0..1). 1 — повністю непрозора тінь (стандартний вигляд),
+    // менші значення дають м'якший ефект — наприклад, для світлих тіней
+    // на темному фоні.
+    private val _textShadowOpacity: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_TEXT_SHADOW_OPACITY, DEFAULT_TEXT_SHADOW_OPACITY)
+            .coerceIn(0f, 1f))
+
+    val textShadowOpacityState: MutableState<Float>
+        get() = _textShadowOpacity
+
+    var textShadowOpacity: Float
+        get() = _textShadowOpacity.value
+        set(value) {
+            val clamped = value.coerceIn(0f, 1f)
+            _textShadowOpacity.value = clamped
+            prefs.edit().putFloat(KEY_TEXT_SHADOW_OPACITY, clamped).apply()
+        }
+
+    // Радіус розмиття тіні. 0 — різкий «hard shadow», вище — м'якший градієнт.
+    private val _textShadowRadius: MutableState<Float> =
+        mutableStateOf(prefs.getFloat(KEY_TEXT_SHADOW_RADIUS, DEFAULT_TEXT_SHADOW_RADIUS)
+            .coerceIn(0f, MAX_TEXT_SHADOW_RADIUS))
+
+    val textShadowRadiusState: MutableState<Float>
+        get() = _textShadowRadius
+
+    var textShadowRadius: Float
+        get() = _textShadowRadius.value
+        set(value) {
+            val clamped = value.coerceIn(0f, MAX_TEXT_SHADOW_RADIUS)
+            _textShadowRadius.value = clamped
+            prefs.edit().putFloat(KEY_TEXT_SHADOW_RADIUS, clamped).apply()
+        }
+
+    // ==================== ВІДХИЛЕНІ СПОВІЩЕННЯ ====================
+    // Сповіщення про низький залишок / OOS генеруються реактивно з реального
+    // стану складу. Якщо користувач їх прочитав і хоче прибрати з UI —
+    // зберігаємо їхній id у Set. ViewModel фільтрує сповіщення з цього набору.
+    // ID для low-stock включає поточний залишок (`low_<catalog>_<stock>`), тому
+    // якщо залишок зміниться (наприклад, ще один продаж знизить його) — буде
+    // згенеровано нове сповіщення з новим id, не зчинене з відхиленим.
+
+    private val _dismissedNotifications: MutableState<Set<String>> =
+        mutableStateOf(prefs.getStringSet(KEY_DISMISSED_NOTIFICATIONS, emptySet())?.toSet() ?: emptySet())
+
+    val dismissedNotificationsState: MutableState<Set<String>>
+        get() = _dismissedNotifications
+
+    fun dismissNotification(id: String) {
+        if (id.isBlank()) return
+        val next = _dismissedNotifications.value + id
+        _dismissedNotifications.value = next
+        prefs.edit().putStringSet(KEY_DISMISSED_NOTIFICATIONS, next).apply()
+    }
+
+    fun dismissNotifications(ids: Collection<String>) {
+        val filtered = ids.filter { it.isNotBlank() }
+        if (filtered.isEmpty()) return
+        val next = _dismissedNotifications.value + filtered
+        _dismissedNotifications.value = next
+        prefs.edit().putStringSet(KEY_DISMISSED_NOTIFICATIONS, next).apply()
+    }
+
+    fun restoreAllNotifications() {
+        if (_dismissedNotifications.value.isEmpty()) return
+        _dismissedNotifications.value = emptySet()
+        prefs.edit().putStringSet(KEY_DISMISSED_NOTIFICATIONS, emptySet()).apply()
+    }
+
     // ==================== ВЕРХНІЙ/НИЖНІЙ/БІЧНИЙ БАРИ ====================
     // Користувач може задати колір фону для кожного з трьох барів та повзунком
     // зробити його світлішим або темнішим. Жодної реальної прозорості — бари
@@ -683,6 +817,13 @@ class SettingsManager @Inject constructor(
         private const val KEY_TOP_BAR_OPACITY = "top_bar_opacity"
         private const val KEY_BOTTOM_BAR_OPACITY = "bottom_bar_opacity"
         private const val KEY_DRAWER_OPACITY = "drawer_opacity"
+        private const val KEY_TEXT_SHADOW_ENABLED = "text_shadow_enabled"
+        private const val KEY_TEXT_SHADOW_COLOR = "text_shadow_color"
+        private const val KEY_TEXT_SHADOW_OFFSET_X = "text_shadow_offset_x"
+        private const val KEY_TEXT_SHADOW_OFFSET_Y = "text_shadow_offset_y"
+        private const val KEY_TEXT_SHADOW_OPACITY = "text_shadow_opacity"
+        private const val KEY_TEXT_SHADOW_RADIUS = "text_shadow_radius"
+        private const val KEY_DISMISSED_NOTIFICATIONS = "dismissed_notifications"
         const val DEFAULT_LOW_STOCK_THRESHOLD = 3
         const val MAX_LOW_STOCK_THRESHOLD = 20
         const val DEFAULT_FONT_SIZE = 14
@@ -748,6 +889,15 @@ class SettingsManager @Inject constructor(
         const val MIN_BAR_OPACITY = 0.2f
         const val MAX_BAR_OPACITY = 1.0f
         const val DEFAULT_BAR_OPACITY = 1.0f
+        // Тіні тексту. Стандарт: вимкнено, чорний колір, зсув 2dp/2dp,
+        // непрозорість 0.85, радіус 4dp — нейтральна "drop shadow" поведінка.
+        const val DEFAULT_TEXT_SHADOW_COLOR = "000000"
+        const val DEFAULT_TEXT_SHADOW_OFFSET = 2f
+        const val MIN_TEXT_SHADOW_OFFSET = -12f
+        const val MAX_TEXT_SHADOW_OFFSET = 12f
+        const val DEFAULT_TEXT_SHADOW_OPACITY = 0.85f
+        const val DEFAULT_TEXT_SHADOW_RADIUS = 4f
+        const val MAX_TEXT_SHADOW_RADIUS = 24f
         /**
          * Ідентифікатори всіх плиток швидкого доступу головного меню.
          * Збігаються з `tileId`, який передається у [QuickAccessButton].

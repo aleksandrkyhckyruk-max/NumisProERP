@@ -53,6 +53,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -130,8 +131,11 @@ fun SettingsScreen(
     var showEmblemDialog by remember { mutableStateOf(false) }
     var showDashboardTextDialog by remember { mutableStateOf(false) }
     var showInfoCardsDialog by remember { mutableStateOf(false) }
-    var showTopBarDialog by remember { mutableStateOf(false) }
-    var showBottomBarDialog by remember { mutableStateOf(false) }
+    var showTextShadowDialog by remember { mutableStateOf(false) }
+    // Один діалог для верхнього + нижнього бару одночасно — раніше було два
+    // окремі (`showTopBarDialog` / `showBottomBarDialog`). Користувач попросив
+    // обʼєднати, щоб одним повзунком налаштовувати обидва бари.
+    var showTopBottomBarDialog by remember { mutableStateOf(false) }
     var showDrawerDialog by remember { mutableStateOf(false) }
     // Поточна плитка, для якої запускається picker (`tileId`). Зберігаємо тут,
     // щоб після повернення з image-picker зрозуміти, куди писати файл.
@@ -453,6 +457,23 @@ fun SettingsScreen(
                 )
             }
             item {
+                val shadowOn = settings.textShadowEnabledState.value
+                val shadowColor = settings.textShadowColorState.value
+                val shadowOpacity = (settings.textShadowOpacityState.value * 100).toInt()
+                SettingsButton(
+                    icon = Icons.Default.FormatSize,
+                    title = tr("Тіні тексту", "Text shadow"),
+                    subtitle = if (shadowOn) {
+                        val colorPart = if (shadowColor.isNotBlank()) "#$shadowColor" else "—"
+                        tr("Увімкнено · колір $colorPart · непрозорість $shadowOpacity%",
+                            "On · color $colorPart · opacity $shadowOpacity%")
+                    } else {
+                        tr("Вимкнено", "Off")
+                    },
+                    onClick = { showTextShadowDialog = true }
+                )
+            }
+            item {
                 val infoAlphaPct = (settings.infoCardBackgroundAlphaState.value * 100).toInt()
                 val infoColorSet = settings.infoCardBackgroundColorState.value.isNotBlank()
                 SettingsButton(
@@ -468,25 +489,17 @@ fun SettingsScreen(
                 )
             }
             item {
+                // Обʼєднаний пункт «верхній + нижній бар» — один повзунок керує
+                // двома барами одночасно. Підзаголовок показує налаштування верхнього
+                // бару (вони ж застосовані до нижнього після обʼєднання).
                 val topColorSet = settings.topBarColorState.value.isNotBlank()
                 val topBright = settings.topBarBrightnessState.value
                 val topOpacity = settings.topBarOpacityState.value
                 SettingsButton(
                     icon = Icons.Default.ColorLens,
-                    title = tr("Верхній бар", "Top bar"),
+                    title = tr("Верхній + нижній бар", "Top + bottom bar"),
                     subtitle = buildBarSubtitle(topColorSet, topBright, topOpacity),
-                    onClick = { showTopBarDialog = true }
-                )
-            }
-            item {
-                val bottomColorSet = settings.bottomBarColorState.value.isNotBlank()
-                val bottomBright = settings.bottomBarBrightnessState.value
-                val bottomOpacity = settings.bottomBarOpacityState.value
-                SettingsButton(
-                    icon = Icons.Default.ColorLens,
-                    title = tr("Нижній бар", "Bottom bar"),
-                    subtitle = buildBarSubtitle(bottomColorSet, bottomBright, bottomOpacity),
-                    onClick = { showBottomBarDialog = true }
+                    onClick = { showTopBottomBarDialog = true }
                 )
             }
             item {
@@ -684,29 +697,35 @@ fun SettingsScreen(
         )
     }
 
-    if (showTopBarDialog) {
-        BarCustomizationDialog(
-            title = tr("Верхній бар", "Top bar"),
-            colorState = settings.topBarColorState,
-            brightnessState = settings.topBarBrightnessState,
-            opacityState = settings.topBarOpacityState,
-            onColorChange = { settings.topBarColor = it },
-            onBrightnessChange = { settings.topBarBrightness = it },
-            onOpacityChange = { settings.topBarOpacity = it },
-            onDismiss = { showTopBarDialog = false }
+    if (showTextShadowDialog) {
+        TextShadowDialog(
+            settings = settings,
+            onDismiss = { showTextShadowDialog = false }
         )
     }
 
-    if (showBottomBarDialog) {
+    if (showTopBottomBarDialog) {
+        // Обʼєднаний діалог: показуємо стан верхнього бару у повзунках, але
+        // кожна зміна синхронно записується і у верхній, і в нижній бар. Так
+        // користувач одним рухом узгоджує обидва бари.
         BarCustomizationDialog(
-            title = tr("Нижній бар", "Bottom bar"),
-            colorState = settings.bottomBarColorState,
-            brightnessState = settings.bottomBarBrightnessState,
-            opacityState = settings.bottomBarOpacityState,
-            onColorChange = { settings.bottomBarColor = it },
-            onBrightnessChange = { settings.bottomBarBrightness = it },
-            onOpacityChange = { settings.bottomBarOpacity = it },
-            onDismiss = { showBottomBarDialog = false }
+            title = tr("Верхній + нижній бар", "Top + bottom bar"),
+            colorState = settings.topBarColorState,
+            brightnessState = settings.topBarBrightnessState,
+            opacityState = settings.topBarOpacityState,
+            onColorChange = {
+                settings.topBarColor = it
+                settings.bottomBarColor = it
+            },
+            onBrightnessChange = {
+                settings.topBarBrightness = it
+                settings.bottomBarBrightness = it
+            },
+            onOpacityChange = {
+                settings.topBarOpacity = it
+                settings.bottomBarOpacity = it
+            },
+            onDismiss = { showTopBottomBarDialog = false }
         )
     }
 
@@ -1597,6 +1616,131 @@ private fun InfoCardsDialog(
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
+    )
+}
+
+/**
+ * Налаштування тіні для основних текстів на робочому столі.
+ *
+ * Послідовність елементів свідомо повторює природний порядок налаштування:
+ * спочатку «увімкнути/вимкнути», потім колір, потім зсув по осях, далі прозорість
+ * і розмиття. Для тих, хто хоче читабельний текст на світлих фото, типове
+ * налаштування — увімкнути, чорний колір, X=2 / Y=2, непрозорість ≥70%,
+ * радіус 2-4.
+ */
+@Composable
+private fun TextShadowDialog(
+    settings: SettingsManager,
+    onDismiss: () -> Unit
+) {
+    val enabled by settings.textShadowEnabledState
+    val colorHex by settings.textShadowColorState
+    val offsetX by settings.textShadowOffsetXState
+    val offsetY by settings.textShadowOffsetYState
+    val opacity by settings.textShadowOpacityState
+    val blurRadius by settings.textShadowRadiusState
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Тіні тексту", "Text shadow")) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = tr("Увімкнути тіні", "Enable shadow"),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = { settings.textShadowEnabled = it }
+                    )
+                }
+                Text(
+                    tr(
+                        "Допомагає прочитати текст на будь-якому фоні — наприклад, " +
+                            "на світлих фото поставте чорну тінь, на темних — світлу.",
+                        "Helps reading text on any background — use a dark shadow on light photos, light on dark."
+                    ),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    tr("Колір тіні", "Shadow color"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                ColorPickerRow(
+                    currentHex = colorHex,
+                    onSelect = {
+                        // Порожньо означає «використати чорний» — щоб не плутати з off:
+                        // вимикання керується окремим тоглом.
+                        settings.textShadowColor = it.ifBlank { SettingsManager.DEFAULT_TEXT_SHADOW_COLOR }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                val xLabel = "%.1f".format(offsetX)
+                Text(
+                    tr("Зсув X: $xLabel dp", "Offset X: $xLabel dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = offsetX,
+                    onValueChange = { settings.textShadowOffsetX = it },
+                    valueRange = SettingsManager.MIN_TEXT_SHADOW_OFFSET..SettingsManager.MAX_TEXT_SHADOW_OFFSET
+                )
+
+                val yLabel = "%.1f".format(offsetY)
+                Text(
+                    tr("Зсув Y: $yLabel dp", "Offset Y: $yLabel dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = offsetY,
+                    onValueChange = { settings.textShadowOffsetY = it },
+                    valueRange = SettingsManager.MIN_TEXT_SHADOW_OFFSET..SettingsManager.MAX_TEXT_SHADOW_OFFSET
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                val opacityPct = (opacity * 100f).toInt()
+                Text(
+                    tr("Прозорість тіні: $opacityPct%", "Shadow opacity: $opacityPct%"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = opacity,
+                    onValueChange = { settings.textShadowOpacity = it },
+                    valueRange = 0f..1f
+                )
+
+                val radiusLabel = "%.1f".format(blurRadius)
+                Text(
+                    tr("Розмиття: $radiusLabel dp", "Blur radius: $radiusLabel dp"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                Slider(
+                    value = blurRadius,
+                    onValueChange = { settings.textShadowRadius = it },
+                    valueRange = 0f..SettingsManager.MAX_TEXT_SHADOW_RADIUS
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } },
+        dismissButton = {
+            TextButton(onClick = {
+                settings.textShadowEnabled = false
+                settings.textShadowColor = SettingsManager.DEFAULT_TEXT_SHADOW_COLOR
+                settings.textShadowOffsetX = SettingsManager.DEFAULT_TEXT_SHADOW_OFFSET
+                settings.textShadowOffsetY = SettingsManager.DEFAULT_TEXT_SHADOW_OFFSET
+                settings.textShadowOpacity = SettingsManager.DEFAULT_TEXT_SHADOW_OPACITY
+                settings.textShadowRadius = SettingsManager.DEFAULT_TEXT_SHADOW_RADIUS
+            }) { Text(tr("Скинути", "Reset")) }
+        }
     )
 }
 

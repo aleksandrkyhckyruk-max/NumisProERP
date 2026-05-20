@@ -169,6 +169,20 @@ class MainActivity : ComponentActivity() {
             val drawerColor by settingsManager.drawerColorState
             val drawerBrightness by settingsManager.drawerBrightnessState
             val drawerOpacity by settingsManager.drawerOpacityState
+            val textShadowEnabled by settingsManager.textShadowEnabledState
+            val textShadowColor by settingsManager.textShadowColorState
+            val textShadowOffsetX by settingsManager.textShadowOffsetXState
+            val textShadowOffsetY by settingsManager.textShadowOffsetYState
+            val textShadowOpacity by settingsManager.textShadowOpacityState
+            val textShadowRadius by settingsManager.textShadowRadiusState
+            val textShadowConfig = com.numisproerp.ui.theme.TextShadowConfig(
+                enabled = textShadowEnabled,
+                colorHex = textShadowColor,
+                offsetX = textShadowOffsetX,
+                offsetY = textShadowOffsetY,
+                opacity = textShadowOpacity,
+                blurRadius = textShadowRadius
+            )
             var splashFinished by rememberSaveable { mutableStateOf(false) }
             NumisProERPTheme(
                 appTheme = theme,
@@ -203,7 +217,8 @@ class MainActivity : ComponentActivity() {
                 bottomBarOpacity = bottomBarOpacity,
                 drawerColorHex = drawerColor,
                 drawerBrightness = drawerBrightness,
-                drawerOpacity = drawerOpacity
+                drawerOpacity = drawerOpacity,
+                textShadowConfig = textShadowConfig
             ) {
                 CompositionLocalProvider(LocalAppLanguage provides language) {
                     Surface(
