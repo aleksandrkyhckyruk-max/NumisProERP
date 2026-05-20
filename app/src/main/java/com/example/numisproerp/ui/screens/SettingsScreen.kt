@@ -2195,7 +2195,13 @@ private fun TileLayoutDialog(
             TextButton(onClick = {
                 settings.setTileGrid(SettingsManager.DEFAULT_TILE_GRID_COLUMNS, SettingsManager.DEFAULT_TILE_GRID_ROWS)
                 settings.setTileOrder(SettingsManager.DEFAULT_TILE_ORDER)
-                SettingsManager.DEFAULT_TILE_ORDER.forEach { id -> settings.setTileLabel(id, "") }
+                // Очищаємо custom-назви для ВСІХ зареєстрованих плиток, не лише
+                // тих, що входять у DEFAULT_TILE_ORDER. Інакше, якщо користувач
+                // перейменував напр. "Звіти" або "Витрати", старе ім'я залишалось
+                // би у SharedPreferences і "виринало" при поверненні плитки.
+                QuickAccessActionRegistry.all.forEach { action ->
+                    settings.setTileLabel(action.id, "")
+                }
             }) { Text(tr("Скинути", "Reset")) }
         }
     )

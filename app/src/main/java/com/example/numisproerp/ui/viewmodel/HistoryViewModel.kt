@@ -178,15 +178,24 @@ class HistoryViewModel @Inject constructor(
      */
     private fun groupPurchasesBySupplierDay(entries: List<HistoryEntry>): List<HistoryEntry> {
         if (entries.isEmpty()) return entries
-        val dayMs = 24L * 60L * 60L * 1000L
         val purchases = entries.filter { it.type == HistoryEntryType.PURCHASE }
         val others = entries.filter { it.type != HistoryEntryType.PURCHASE }
         if (purchases.isEmpty()) return entries
 
+        // Ключ дня — локальний календарний день, а не UTC. Інакше для України
+        // (UTC+2/+3) закупівлі біля півночі потрапляли б у різні «дні».
+        // Використовуємо `Calendar` із системним часовим поясом і кодуємо
+        // (рік, день року) у Long: рік * 1000 + dayOfYear.
+        val cal = java.util.Calendar.getInstance()
+        fun localDayKey(ts: Long): Long {
+            cal.timeInMillis = ts
+            return cal.get(java.util.Calendar.YEAR) * 1000L + cal.get(java.util.Calendar.DAY_OF_YEAR)
+        }
+
         val grouped = mutableListOf<HistoryEntry>()
         purchases
-            .groupBy { Pair(it.counterparty.trim(), it.date / dayMs) }
-            .forEach { (_, items) ->
+            .groupBy { Pair(it.counterparty.trim(), localDayKey(it.date)) }
+            .forEach { (key, items) ->
                 if (items.size <= 1) {
                     grouped.add(items.first())
                 } else {
@@ -195,7 +204,7 @@ class HistoryViewModel @Inject constructor(
                     val first = sorted.first()
                     grouped.add(
                         HistoryEntry(
-                            id = "purchase-group-" + first.counterparty + "-" + (first.date / dayMs),
+                            id = "purchase-group-" + key.first + "-" + key.second,
                             type = HistoryEntryType.PURCHASE,
                             date = first.date,
                             productName = "",
