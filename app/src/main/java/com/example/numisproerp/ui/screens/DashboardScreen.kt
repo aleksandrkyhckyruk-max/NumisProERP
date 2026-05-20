@@ -888,13 +888,15 @@ private fun PremiumQuickAccessButton(
         val labelSize = LocalTileLabelFontSize.current.sp
         val labelColor = parseHexColorOrNull(LocalTileLabelColor.current)
             ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+        val labelShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
         Text(
             text = label,
             fontSize = labelSize,
             color = labelColor,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
-            lineHeight = labelSize * 1.2f
+            lineHeight = labelSize * 1.2f,
+            style = MaterialTheme.typography.bodySmall.copy(shadow = labelShadow)
         )
     }
 }

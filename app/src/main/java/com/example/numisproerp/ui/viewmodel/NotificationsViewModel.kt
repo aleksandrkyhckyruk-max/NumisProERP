@@ -42,7 +42,12 @@ class NotificationsViewModel @Inject constructor(
      *     поки реальні умови складу не змінилися.
      *
      * Ідентифікатори:
-     *  - `out_<catalogId>` — товар повністю вичерпаний, унікальний на товар;
+     *  - `out_<catalogId>_<totalPurchased>` — товар повністю вичерпаний; до id
+     *    додано загальну кількість закуплених одиниць, щоб після поповнення
+     *    (totalPurchased зросте) і повторного вичерпання згенерувався новий
+     *    id, не присутній у dismissed-сеті. Інакше після першого приховування
+     *    сповіщення зникало б назавжди, навіть після повного циклу
+     *    «поповнили → знову закінчилося».
      *  - `low_<catalogId>_<stock>` — кількість входить у поточний поріг; до id
      *    додано фактичний залишок, щоб після зміни залишку (наприклад, ще один
      *    продаж знизив його) ми згенерували новий id, який не вважається
@@ -64,7 +69,7 @@ class NotificationsViewModel @Inject constructor(
             .forEach { p ->
                 items.add(
                     NotificationItem(
-                        id = "out_${p.catalogId}",
+                        id = "out_${p.catalogId}_${p.totalPurchased}",
                         titleUa = "Закінчився товар: ${p.name}",
                         titleEn = "Out of stock: ${p.name}",
                         descriptionUa = "Залишок 0. Розгляньте можливість поповнення.",

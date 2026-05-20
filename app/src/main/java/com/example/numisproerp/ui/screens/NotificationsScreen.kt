@@ -196,12 +196,14 @@ private fun SwipeableNotificationCard(
 
 @Composable
 private fun SwipeDismissBackground() {
+    // fillMaxSize щоб червоний фон покрив усю висоту картки — інакше при
+    // більших шрифтах або довгих описах текстовий блок виходить вище фону.
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(72.dp)
+            .fillMaxSize()
             .clip(RoundedCornerShape(IOSDesign.CardCornerRadius))
-            .background(AccentRed.copy(alpha = 0.85f))
+            .background(AccentRed.copy(alpha = 0.85f)),
+        contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier
