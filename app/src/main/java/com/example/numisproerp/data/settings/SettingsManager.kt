@@ -643,6 +643,116 @@ class SettingsManager @Inject constructor(
         prefs.edit().putStringSet(KEY_DISMISSED_NOTIFICATIONS, emptySet()).apply()
     }
 
+    // ==================== СІТКА ПЛИТОК ГОЛОВНОГО ЕКРАНА ====================
+    // Параметри керування сіткою плиток на головному екрані: кількість колонок,
+    // кількість рядків, порядок плиток та користувацькі назви. Усе зберігається
+    // у [prefs] і реактивно віддається через MutableState — DashboardScreen
+    // зчитує ці значення через CompositionLocal провайдери з [MainActivity].
+    //
+    // Розмір сітки обмежений набором пресетів [ALLOWED_TILE_GRID_PRESETS].
+    // Загальна кількість плиток у видимій сітці = columns * rows. `tileOrder`
+    // може містити більше або менше id — UI рендерить тільки перші N. Порожні
+    // позиції зарезервовані для майбутнього (наприклад, додавання нових дій).
+
+    private val _tileGridColumns: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_TILE_GRID_COLUMNS, DEFAULT_TILE_GRID_COLUMNS))
+
+    val tileGridColumnsState: MutableState<Int>
+        get() = _tileGridColumns
+
+    private val _tileGridRows: MutableState<Int> =
+        mutableStateOf(prefs.getInt(KEY_TILE_GRID_ROWS, DEFAULT_TILE_GRID_ROWS))
+
+    val tileGridRowsState: MutableState<Int>
+        get() = _tileGridRows
+
+    /**
+     * Задає сітку плиток. Якщо (cols, rows) немає в [ALLOWED_TILE_GRID_PRESETS],
+     * пара ігнорується — це додатковий запобіжник проти пошкоджених преф-файлів.
+     */
+    fun setTileGrid(cols: Int, rows: Int) {
+        if (ALLOWED_TILE_GRID_PRESETS.none { it.first == cols && it.second == rows }) return
+        _tileGridColumns.value = cols
+        _tileGridRows.value = rows
+        prefs.edit()
+            .putInt(KEY_TILE_GRID_COLUMNS, cols)
+            .putInt(KEY_TILE_GRID_ROWS, rows)
+            .apply()
+    }
+
+    /**
+     * Порядок плиток як список actionId. Якщо в prefs нічого немає або значення
+     * пошкоджене — повертаємо [DEFAULT_TILE_ORDER]. Список може бути довшим або
+     * коротшим за поточну сітку; UI рендерить cols*rows перших елементів.
+     */
+    private val _tileOrder: MutableState<List<String>> =
+        mutableStateOf(parseTileOrder(prefs.getString(KEY_TILE_ORDER, null)))
+
+    val tileOrderState: MutableState<List<String>>
+        get() = _tileOrder
+
+    /**
+     * Записує новий порядок плиток. Дублікати та порожні рядки відкидаються,
+     * щоб не зламати рендеринг.
+     */
+    fun setTileOrder(order: List<String>) {
+        val clean = order.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        _tileOrder.value = clean
+        prefs.edit().putString(KEY_TILE_ORDER, clean.joinToString(",")).apply()
+    }
+
+    private fun parseTileOrder(raw: String?): List<String> {
+        if (raw.isNullOrBlank()) return DEFAULT_TILE_ORDER
+        val parts = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        return if (parts.isEmpty()) DEFAULT_TILE_ORDER else parts
+    }
+
+    /**
+     * Користувацькі назви плиток. Один ключ на одну плитку — `tile_label_<actionId>`.
+     * Якщо ключ відсутній або порожній — UI використовує дефолтну назву з
+     * `QuickAccessActionRegistry`.
+     */
+    private fun loadTileLabels(): Map<String, String> {
+        val all = prefs.all
+        val result = mutableMapOf<String, String>()
+        for ((key, value) in all) {
+            if (key.startsWith(KEY_TILE_LABEL_PREFIX) && value is String && value.isNotBlank()) {
+                val actionId = key.removePrefix(KEY_TILE_LABEL_PREFIX)
+                if (actionId.isNotBlank()) result[actionId] = value
+            }
+        }
+        return result
+    }
+
+    private val _tileLabels: MutableState<Map<String, String>> =
+        mutableStateOf(loadTileLabels())
+
+    val tileLabelsState: MutableState<Map<String, String>>
+        get() = _tileLabels
+
+    fun getTileLabelOverride(actionId: String): String =
+        _tileLabels.value[actionId].orEmpty()
+
+    /**
+     * Записує користувацьку назву плитки. Порожнє значення видаляє override
+     * (плитка повертається до дефолтної назви з реєстру).
+     */
+    fun setTileLabel(actionId: String, label: String) {
+        if (actionId.isBlank()) return
+        val newMap = _tileLabels.value.toMutableMap()
+        val trimmed = label.trim()
+        val editor = prefs.edit()
+        if (trimmed.isBlank()) {
+            newMap.remove(actionId)
+            editor.remove("$KEY_TILE_LABEL_PREFIX$actionId")
+        } else {
+            newMap[actionId] = trimmed
+            editor.putString("$KEY_TILE_LABEL_PREFIX$actionId", trimmed)
+        }
+        _tileLabels.value = newMap.toMap()
+        editor.apply()
+    }
+
     // ==================== ВЕРХНІЙ/НИЖНІЙ/БІЧНИЙ БАРИ ====================
     // Користувач може задати колір фону для кожного з трьох барів та повзунком
     // зробити його світлішим або темнішим. Жодної реальної прозорості — бари
@@ -827,6 +937,20 @@ class SettingsManager @Inject constructor(
         private const val KEY_TEXT_SHADOW_OPACITY = "text_shadow_opacity"
         private const val KEY_TEXT_SHADOW_RADIUS = "text_shadow_radius"
         private const val KEY_DISMISSED_NOTIFICATIONS = "dismissed_notifications"
+        // ==================== СІТКА ПЛИТОК ГОЛОВНОГО ЕКРАНА ====================
+        // Користувацька конфігурація плиток швидкого доступу: розмір сітки,
+        // порядок та назви кожної плитки. Дозволяє вибирати сітки 5×1, 3×2,
+        // 3×3, 4×2, 4×3 і будь-який порядок дій з [QuickAccessActionRegistry].
+        private const val KEY_TILE_GRID_COLUMNS = "tile_grid_columns"
+        private const val KEY_TILE_GRID_ROWS = "tile_grid_rows"
+        // Порядок плиток — comma-separated список actionId (із реєстру).
+        // Дозволяє швидко серіалізувати/десеріалізувати без JSON.
+        private const val KEY_TILE_ORDER = "tile_order"
+        // Префікс для перейменованих назв плиток. Один ключ на кожен actionId.
+        // Використовуємо суфікс `_name_` (а не просто `tile_label_`), бо існуючі
+        // ключі `tile_label_font_size`, `tile_label_color` перетиналися б префіксом
+        // і випадково потрапляли в [loadTileLabels].
+        private const val KEY_TILE_LABEL_PREFIX = "tile_name_"
         const val DEFAULT_LOW_STOCK_THRESHOLD = 3
         const val MAX_LOW_STOCK_THRESHOLD = 20
         const val DEFAULT_FONT_SIZE = 14
@@ -908,6 +1032,23 @@ class SettingsManager @Inject constructor(
         val TILE_IDS = listOf(
             "purchase", "sale", "stock", "clients",
             "reports", "suppliers", "expenses", "collection", "documents"
+        )
+
+        // Стандартні значення сітки головного екрана: 3 колонки × 2 рядки = 6 плиток.
+        const val DEFAULT_TILE_GRID_COLUMNS = 3
+        const val DEFAULT_TILE_GRID_ROWS = 2
+        // Дозволені пресети сітки. Користувач може обрати тільки з цього списку.
+        // Кожна пара (cols, rows) дає cols*rows плиток.
+        val ALLOWED_TILE_GRID_PRESETS: List<Pair<Int, Int>> = listOf(
+            5 to 1,
+            3 to 2,
+            3 to 3,
+            4 to 2,
+            4 to 3
+        )
+        // Порядок плиток за замовчуванням — 6 плиток як після PR #1.
+        val DEFAULT_TILE_ORDER: List<String> = listOf(
+            "purchase", "sale", "stock", "clients", "suppliers", "collection"
         )
     }
 }

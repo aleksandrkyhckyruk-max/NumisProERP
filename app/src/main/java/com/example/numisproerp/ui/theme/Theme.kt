@@ -206,6 +206,10 @@ fun NumisProERPTheme(
     drawerBrightness: Float = 0f,
     drawerOpacity: Float = SettingsManager.DEFAULT_BAR_OPACITY,
     textShadowConfig: TextShadowConfig = TextShadowConfig.Disabled,
+    tileGridColumns: Int = SettingsManager.DEFAULT_TILE_GRID_COLUMNS,
+    tileGridRows: Int = SettingsManager.DEFAULT_TILE_GRID_ROWS,
+    tileOrder: List<String> = SettingsManager.DEFAULT_TILE_ORDER,
+    tileLabels: Map<String, String> = emptyMap(),
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
@@ -278,7 +282,11 @@ fun NumisProERPTheme(
         LocalDrawerColor provides drawerColorHex,
         LocalDrawerBrightness provides drawerBrightness,
         LocalDrawerOpacity provides drawerOpacity,
-        LocalTextShadowConfig provides textShadowConfig
+        LocalTextShadowConfig provides textShadowConfig,
+        LocalTileGridColumns provides tileGridColumns,
+        LocalTileGridRows provides tileGridRows,
+        LocalTileOrder provides tileOrder,
+        LocalTileLabels provides tileLabels
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

@@ -71,8 +71,14 @@ import com.numisproerp.ui.theme.LocalEmblemImagePath
 import com.numisproerp.ui.theme.LocalEmblemOffsetX
 import com.numisproerp.ui.theme.LocalEmblemOffsetY
 import com.numisproerp.ui.theme.LocalEmblemSize
+import com.numisproerp.ui.theme.LocalTileGridColumns
+import com.numisproerp.ui.theme.LocalTileGridRows
 import com.numisproerp.ui.theme.LocalTileLabelColor
 import com.numisproerp.ui.theme.LocalTileLabelFontSize
+import com.numisproerp.ui.theme.LocalTileLabels
+import com.numisproerp.ui.theme.LocalTileOrder
+import com.numisproerp.ui.i18n.LocalAppLanguage
+import com.numisproerp.data.settings.AppLanguage
 import com.numisproerp.ui.theme.LocalInfoCardBackgroundAlpha
 import com.numisproerp.ui.theme.LocalInfoCardBackgroundColor
 import com.numisproerp.ui.theme.LocalTileBackgroundAlpha
@@ -117,13 +123,8 @@ fun DashboardScreen(
     } else {
         DashboardContent(
             data = dashboardData,
-            onNavigateToStock = { navController.navigate(Screen.Stock.route) },
-            onNavigateToClients = { navController.navigate(Screen.Clients.route) },
+            onNavigate = { route -> navController.navigate(route) },
             onNavigateToReports = { navController.navigate(Screen.Reports.route) },
-            onNavigateToPurchase = { navController.navigate(Screen.Purchase.route) },
-            onNavigateToSale = { navController.navigate(Screen.Sale.route) },
-            onNavigateToDocuments = { navController.navigate(Screen.MyCollection.route) },
-            onNavigateToSuppliers = { navController.navigate(Screen.Suppliers.route) },
             onNavigateToDetails = { type, title ->
                 navController.navigate("details/$type/$title")
             }
@@ -134,13 +135,8 @@ fun DashboardScreen(
 @Composable
 fun DashboardContent(
     data: DashboardData,
-    onNavigateToStock: () -> Unit,
-    onNavigateToClients: () -> Unit,
+    onNavigate: (String) -> Unit,
     onNavigateToReports: () -> Unit,
-    onNavigateToPurchase: () -> Unit,
-    onNavigateToSale: () -> Unit,
-    onNavigateToDocuments: () -> Unit,
-    onNavigateToSuppliers: () -> Unit,
     onNavigateToDetails: (String, String) -> Unit
 ) {
     val currentDate = SimpleDateFormat("LLLL yyyy", Locale("uk")).format(Date())
@@ -196,17 +192,10 @@ fun DashboardContent(
         }
 
         item {
-            // Сітка швидкого доступу — 2 ряди по 3 плитки (6 кнопок).
-            // Звіти, Витрати та Документи доступні з бокового меню (drawer)
-            // і навмисно прибрані з робочого столу, щоб не дублюватися.
-            QuickAccessGrid(
-                onPurchaseClick = onNavigateToPurchase,
-                onSaleClick = onNavigateToSale,
-                onStockClick = onNavigateToStock,
-                onClientsClick = onNavigateToClients,
-                onSuppliersClick = onNavigateToSuppliers,
-                onCollectionClick = onNavigateToDocuments
-            )
+            // Сітка швидкого доступу. Розмір сітки (cols×rows), порядок плиток
+            // та назви беруться з Налаштувань → «Інтерфейс» → «Плитки головного
+            // меню». Дозволяє користувачу повністю кастомізувати головний екран.
+            QuickAccessGrid(onNavigate = onNavigate)
         }
 
         item {
@@ -527,106 +516,71 @@ fun SectionHeader(title: String) {
  * передаємо `tileSizeOverride`, що пропорційно зменшує плитку.
  */
 @Composable
-fun QuickAccessGrid(
-    onPurchaseClick: () -> Unit,
-    onSaleClick: () -> Unit,
-    onStockClick: () -> Unit,
-    onClientsClick: () -> Unit,
-    onSuppliersClick: () -> Unit,
-    onCollectionClick: () -> Unit
-) {
+fun QuickAccessGrid(onNavigate: (String) -> Unit) {
+    val columns = LocalTileGridColumns.current.coerceAtLeast(1)
+    val rows = LocalTileGridRows.current.coerceAtLeast(1)
+    val rawOrder = LocalTileOrder.current
+    val labels = LocalTileLabels.current
+    val language = LocalAppLanguage.current
+
+    // Беремо лише cols*rows перших валідних id з порядку. Якщо id невідомий
+    // (наприклад, користувач оновлювався з версії, де його не було), пропускаємо.
+    val totalSlots = columns * rows
+    val actions: List<QuickAccessAction> = rawOrder
+        .mapNotNull { QuickAccessActionRegistry.findById(it) }
+        .take(totalSlots)
+    if (actions.isEmpty()) return
+
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val columns = 3
         val spacingDp = 8f
         val rawAvailable = maxWidth.value
-        val perTile = ((rawAvailable - spacingDp * (columns - 1)) / columns).coerceAtLeast(60f)
+        val perTile = ((rawAvailable - spacingDp * (columns - 1)) / columns).coerceAtLeast(40f)
         val defaultSize = com.numisproerp.data.settings.SettingsManager.TILE_BOX_SIZE_DP.toFloat()
-        // Якщо плитка більша за стандартну (80dp) — не перевизначаємо розмір,
-        // щоб користувацький слайдер "розмір іконки" продовжував працювати як раніше.
+        // Якщо плитка не вміщається в дефолтні 80dp — підрізаємо розмір. Інакше
+        // лишаємо `null`, щоб працював користувацький слайдер розміру іконки.
         val tileSizeOverride: Float? = if (perTile >= defaultSize) null else perTile
 
-        val rowModifier = Modifier.fillMaxWidth()
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(spacingDp.dp)
         ) {
-            Row(
-                modifier = rowModifier,
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Top
-            ) {
-                QuickAccessButton(
-                    tileId = "purchase",
-                    icon = Icons.Outlined.LocalAtm,
-                    tileRes = R.drawable.tile_purchase,
-                    lightTileRes = R.drawable.tile_light_purchase,
-                    premiumTileRes = R.drawable.tile_premium_purchase,
-                    lightTint = AccentOrange,
-                    label = tr("Закупівля", "Purchase"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onPurchaseClick
-                )
-                QuickAccessButton(
-                    tileId = "sale",
-                    icon = Icons.Filled.ShoppingCart,
-                    tileRes = R.drawable.tile_sale,
-                    lightTileRes = R.drawable.tile_light_sale,
-                    premiumTileRes = R.drawable.tile_premium_sale,
-                    lightTint = AccentGreen,
-                    label = tr("Продаж", "Sale"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onSaleClick
-                )
-                QuickAccessButton(
-                    tileId = "stock",
-                    icon = Icons.Filled.Store,
-                    tileRes = R.drawable.tile_stock,
-                    lightTileRes = R.drawable.tile_light_stock,
-                    premiumTileRes = R.drawable.tile_premium_stock,
-                    lightTint = AccentBlue,
-                    label = tr("Склад", "Stock"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onStockClick
-                )
-            }
-            Row(
-                modifier = rowModifier,
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Top
-            ) {
-                QuickAccessButton(
-                    tileId = "clients",
-                    icon = Icons.Filled.People,
-                    tileRes = R.drawable.tile_clients,
-                    lightTileRes = R.drawable.tile_light_clients,
-                    premiumTileRes = R.drawable.tile_premium_clients,
-                    lightTint = AccentTeal,
-                    label = tr("Клієнти", "Clients"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onClientsClick
-                )
-                QuickAccessButton(
-                    tileId = "suppliers",
-                    icon = Icons.Filled.People,
-                    tileRes = R.drawable.tile_suppliers,
-                    lightTileRes = R.drawable.tile_light_suppliers,
-                    premiumTileRes = R.drawable.tile_premium_suppliers,
-                    lightTint = AccentPurple,
-                    label = tr("Постачальники", "Suppliers"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onSuppliersClick
-                )
-                QuickAccessButton(
-                    tileId = "collection",
-                    icon = Icons.Outlined.BarChart,
-                    tileRes = R.drawable.tile_collection,
-                    lightTileRes = R.drawable.tile_light_collection,
-                    premiumTileRes = R.drawable.tile_premium_collection,
-                    lightTint = AccentBlue,
-                    label = tr("Моя колекція", "Collection"),
-                    tileSizeOverride = tileSizeOverride,
-                    onClick = onCollectionClick
-                )
+            actions.chunked(columns).forEach { rowActions ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    rowActions.forEach { action ->
+                        val customLabel = labels[action.id]
+                        val label = when {
+                            !customLabel.isNullOrBlank() -> customLabel
+                            language == AppLanguage.EN -> action.labelEn
+                            else -> action.labelUa
+                        }
+                        QuickAccessButton(
+                            tileId = action.id,
+                            icon = action.icon,
+                            tileRes = action.tileRes,
+                            lightTileRes = action.lightTileRes,
+                            premiumTileRes = action.premiumTileRes,
+                            lightTint = action.lightTint,
+                            label = label,
+                            tileSizeOverride = tileSizeOverride,
+                            onClick = { onNavigate(action.route) }
+                        )
+                    }
+                    // Допaковуємо порожніми місцями, щоб останній неповний ряд
+                    // лишався вирівняним до лівого краю (SpaceEvenly з меншою
+                    // кількістю плиток інакше розтягне їх по всій ширині).
+                    val missing = columns - rowActions.size
+                    repeat(missing) {
+                        Spacer(
+                            modifier = Modifier.width(
+                                (tileSizeOverride ?: defaultSize).dp
+                            )
+                        )
+                    }
+                }
             }
         }
     }

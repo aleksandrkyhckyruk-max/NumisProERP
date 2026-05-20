@@ -36,6 +36,12 @@ import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ImportExport
 import androidx.compose.material.icons.outlined.Info
@@ -125,9 +131,16 @@ fun SettingsScreen(
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showDataDialog by remember { mutableStateOf(false) }
+    // Один екран-у-діалозі «Інтерфейс» зберігає в собі всі підпункти, що стосуються
+    // зовнішнього вигляду: шрифти, фон, значки/плитки, емблема, тексти, тіні,
+    // інформаційні картки та бари (верхній+нижній+бічне меню). Раніше кожен із цих
+    // пунктів був окремою кнопкою в Налаштуваннях — користувач просив звести їх
+    // в один пункт, щоб список не був перевантажений.
+    var showInterfaceDialog by remember { mutableStateOf(false) }
     var showFontsDialog by remember { mutableStateOf(false) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
     var showTileIconsDialog by remember { mutableStateOf(false) }
+    var showTileLayoutDialog by remember { mutableStateOf(false) }
     var showEmblemDialog by remember { mutableStateOf(false) }
     var showDashboardTextDialog by remember { mutableStateOf(false) }
     var showInfoCardsDialog by remember { mutableStateOf(false) }
@@ -374,14 +387,16 @@ fun SettingsScreen(
                 )
             }
             item {
+                // Зведений пункт «Інтерфейс»: усе, що стосується вигляду — шрифти,
+                // фон, плитки, емблема, тексти на робочому столі, тіні, інформаційні
+                // картки, бари + бічне меню. Окремі діалоги тих самих підпунктів
+                // лишилися як були, але доступ до них тепер через один екран.
                 val familyKey by settings.fontFamilyState
-                val fontSizeSp by settings.fontSizeState
-                // Назва поточного шрифту: для Google Fonts беремо displayName з [GoogleFontOptions],
-                // для системних — даємо людську підписку. Додаємо в підзаголовок, щоб видно було,
-                // який шрифт було обрано, прямо на екрані Налаштувань.
+                val gridCols by settings.tileGridColumnsState
+                val gridRows by settings.tileGridRowsState
+                val tileCount = gridCols * gridRows
                 val familyName = remember(familyKey) {
                     com.numisproerp.ui.theme.OfflineFontOptions.firstOrNull { it.key == familyKey }?.displayName
-                        ?: com.numisproerp.ui.theme.GoogleFontOptions.firstOrNull { it.key == familyKey }?.displayName
                         ?: when (familyKey) {
                             "sans-serif" -> "Sans-serif"
                             "serif" -> "Serif"
@@ -390,127 +405,13 @@ fun SettingsScreen(
                         }
                 }
                 SettingsButton(
-                    icon = Icons.Default.FormatSize,
-                    title = tr("Шрифти", "Fonts"),
-                    subtitle = tr(
-                        "$familyName · ${fontSizeSp}sp",
-                        "$familyName · ${fontSizeSp}sp"
-                    ),
-                    onClick = { showFontsDialog = true }
-                )
-            }
-            item {
-                SettingsButton(
-                    icon = Icons.Default.Image,
-                    title = tr("Фоновий малюнок", "Background image"),
-                    subtitle = if (settings.backgroundImagePath.isNotBlank())
-                        tr("Встановлено", "Set") else tr("Не вибрано", "Not set"),
-                    onClick = { showBackgroundDialog = true }
-                )
-            }
-            item {
-                val customPhotosCount = settings.tilePhotoPathsState.value.size
-                val alphaPct = (settings.tileBackgroundAlphaState.value * 100).toInt()
-                val iconSize = settings.tileIconSizeState.value
-                SettingsButton(
-                    icon = Icons.Default.Apps,
-                    title = tr("Значки головного меню", "Main menu icons"),
-                    subtitle = tr(
-                        "Фото: $customPhotosCount/8 · Розмір: ${iconSize}dp · Прозорість: $alphaPct%",
-                        "Photos: $customPhotosCount/8 · Size: ${iconSize}dp · Opacity: $alphaPct%"
-                    ),
-                    onClick = { showTileIconsDialog = true }
-                )
-            }
-            item {
-                val emblemSet = settings.emblemImagePathState.value.isNotBlank()
-                val emblemSize = settings.emblemSizeState.value
-                SettingsButton(
                     icon = Icons.Default.Brush,
-                    title = tr("Емблема головного екрана", "Header emblem"),
-                    subtitle = if (emblemSet)
-                        tr("Користувацька · Розмір: ${emblemSize}dp", "Custom · Size: ${emblemSize}dp")
-                    else
-                        tr("Стандартна · Розмір: ${emblemSize}dp", "Default · Size: ${emblemSize}dp"),
-                    onClick = { showEmblemDialog = true }
-                )
-            }
-            item {
-                val headerSize = settings.dashboardHeaderFontSizeState.value
-                val labelSize = settings.tileLabelFontSizeState.value
-                val headerColorSet = settings.dashboardHeaderColorState.value.isNotBlank()
-                val labelColorSet = settings.tileLabelColorState.value.isNotBlank()
-                SettingsButton(
-                    icon = Icons.Default.FormatSize,
-                    title = tr("Текст на робочому столі", "Dashboard text"),
+                    title = tr("Інтерфейс", "Interface"),
                     subtitle = tr(
-                        "Заголовки: ${headerSize}sp" +
-                            (if (headerColorSet) " · колір ✓" else "") +
-                            " · Підписи: ${labelSize}sp" +
-                            (if (labelColorSet) " · колір ✓" else ""),
-                        "Headings: ${headerSize}sp" +
-                            (if (headerColorSet) " · color set" else "") +
-                            " · Labels: ${labelSize}sp" +
-                            (if (labelColorSet) " · color set" else "")
+                        "Шрифт: $familyName · сітка ${gridCols}×${gridRows} ($tileCount плиток)",
+                        "Font: $familyName · grid ${gridCols}×${gridRows} ($tileCount tiles)"
                     ),
-                    onClick = { showDashboardTextDialog = true }
-                )
-            }
-            item {
-                val shadowOn = settings.textShadowEnabledState.value
-                val shadowColor = settings.textShadowColorState.value
-                val shadowOpacity = (settings.textShadowOpacityState.value * 100).toInt()
-                SettingsButton(
-                    icon = Icons.Default.FormatSize,
-                    title = tr("Тіні тексту", "Text shadow"),
-                    subtitle = if (shadowOn) {
-                        val colorPart = if (shadowColor.isNotBlank()) "#$shadowColor" else "—"
-                        tr("Увімкнено · колір $colorPart · непрозорість $shadowOpacity%",
-                            "On · color $colorPart · opacity $shadowOpacity%")
-                    } else {
-                        tr("Вимкнено", "Off")
-                    },
-                    onClick = { showTextShadowDialog = true }
-                )
-            }
-            item {
-                val infoAlphaPct = (settings.infoCardBackgroundAlphaState.value * 100).toInt()
-                val infoColorSet = settings.infoCardBackgroundColorState.value.isNotBlank()
-                SettingsButton(
-                    icon = Icons.Default.ColorLens,
-                    title = tr("Інформаційні картки", "Information cards"),
-                    subtitle = if (infoColorSet)
-                        tr("Колір фону встановлено · Прозорість: $infoAlphaPct%",
-                           "Background color set · Opacity: $infoAlphaPct%")
-                    else
-                        tr("Стандартний фон · Прозорість: $infoAlphaPct%",
-                           "Default background · Opacity: $infoAlphaPct%"),
-                    onClick = { showInfoCardsDialog = true }
-                )
-            }
-            item {
-                // Обʼєднаний пункт «верхній + нижній бар» — один повзунок керує
-                // двома барами одночасно. Підзаголовок показує налаштування верхнього
-                // бару (вони ж застосовані до нижнього після обʼєднання).
-                val topColorSet = settings.topBarColorState.value.isNotBlank()
-                val topBright = settings.topBarBrightnessState.value
-                val topOpacity = settings.topBarOpacityState.value
-                SettingsButton(
-                    icon = Icons.Default.ColorLens,
-                    title = tr("Верхній + нижній бар", "Top + bottom bar"),
-                    subtitle = buildBarSubtitle(topColorSet, topBright, topOpacity),
-                    onClick = { showTopBottomBarDialog = true }
-                )
-            }
-            item {
-                val drawerColorSet = settings.drawerColorState.value.isNotBlank()
-                val drawerBright = settings.drawerBrightnessState.value
-                val drawerOpacity = settings.drawerOpacityState.value
-                SettingsButton(
-                    icon = Icons.Default.ColorLens,
-                    title = tr("Бічне меню", "Side menu"),
-                    subtitle = buildBarSubtitle(drawerColorSet, drawerBright, drawerOpacity),
-                    onClick = { showDrawerDialog = true }
+                    onClick = { showInterfaceDialog = true }
                 )
             }
 
@@ -643,6 +544,30 @@ fun SettingsScreen(
             },
             onExport = exportAction,
             onDismiss = { showDataDialog = false }
+        )
+    }
+
+    if (showInterfaceDialog) {
+        InterfaceDialog(
+            settings = settings,
+            onOpenFonts = { showFontsDialog = true },
+            onOpenBackground = { showBackgroundDialog = true },
+            onOpenTileIcons = { showTileIconsDialog = true },
+            onOpenTileLayout = { showTileLayoutDialog = true },
+            onOpenEmblem = { showEmblemDialog = true },
+            onOpenDashboardText = { showDashboardTextDialog = true },
+            onOpenTextShadow = { showTextShadowDialog = true },
+            onOpenInfoCards = { showInfoCardsDialog = true },
+            onOpenTopBottomBar = { showTopBottomBarDialog = true },
+            onOpenDrawer = { showDrawerDialog = true },
+            onDismiss = { showInterfaceDialog = false }
+        )
+    }
+
+    if (showTileLayoutDialog) {
+        TileLayoutDialog(
+            settings = settings,
+            onDismiss = { showTileLayoutDialog = false }
         )
     }
 
@@ -1938,6 +1863,441 @@ private fun ColorPickerRow(currentHex: String, onSelect: (String) -> Unit) {
                     Text("∅", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             }
+        }
+    }
+}
+
+// ======================== Interface (consolidated) ========================
+
+/**
+ * Зведений діалог «Інтерфейс». Не містить власної логіки — лише список рядків,
+ * кожен з яких відкриває один із існуючих діалогів (шрифти/фон/плитки/емблема/
+ * тексти/тіні/інформаційні картки/бари/бічне меню). Раніше всі ці кнопки були
+ * розкидані на головному екрані Налаштувань; користувач попросив зібрати їх у
+ * один пункт «Інтерфейс».
+ */
+@Composable
+private fun InterfaceDialog(
+    settings: SettingsManager,
+    onOpenFonts: () -> Unit,
+    onOpenBackground: () -> Unit,
+    onOpenTileIcons: () -> Unit,
+    onOpenTileLayout: () -> Unit,
+    onOpenEmblem: () -> Unit,
+    onOpenDashboardText: () -> Unit,
+    onOpenTextShadow: () -> Unit,
+    onOpenInfoCards: () -> Unit,
+    onOpenTopBottomBar: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val familyKey by settings.fontFamilyState
+    val gridCols by settings.tileGridColumnsState
+    val gridRows by settings.tileGridRowsState
+    val customPhotosCount = settings.tilePhotoPathsState.value.size
+    val familyName = remember(familyKey) {
+        com.numisproerp.ui.theme.OfflineFontOptions.firstOrNull { it.key == familyKey }?.displayName
+            ?: when (familyKey) {
+                "sans-serif" -> "Sans-serif"
+                "serif" -> "Serif"
+                "monospace" -> "Monospace"
+                else -> "System"
+            }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Інтерфейс", "Interface")) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    tr(
+                        "Усі налаштування зовнішнього вигляду в одному місці.",
+                        "All appearance settings in one place."
+                    ),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                InterfaceRow(
+                    icon = Icons.Default.FormatSize,
+                    title = tr("Шрифти", "Fonts"),
+                    subtitle = "$familyName",
+                    onClick = { onDismiss(); onOpenFonts() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.Image,
+                    title = tr("Фоновий малюнок", "Background image"),
+                    subtitle = if (settings.backgroundImagePath.isNotBlank())
+                        tr("Встановлено", "Set") else tr("Не вибрано", "Not set"),
+                    onClick = { onDismiss(); onOpenBackground() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.Apps,
+                    title = tr("Значки головного меню", "Main menu icons"),
+                    subtitle = tr("Фото: $customPhotosCount/8", "Photos: $customPhotosCount/8"),
+                    onClick = { onDismiss(); onOpenTileIcons() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.Apps,
+                    title = tr("Плитки головного меню", "Main menu tiles"),
+                    subtitle = tr(
+                        "Сітка ${gridCols}×${gridRows} · порядок · назви",
+                        "Grid ${gridCols}×${gridRows} · order · labels"
+                    ),
+                    onClick = { onDismiss(); onOpenTileLayout() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.Brush,
+                    title = tr("Емблема головного екрана", "Header emblem"),
+                    subtitle = if (settings.emblemImagePathState.value.isNotBlank())
+                        tr("Користувацька", "Custom") else tr("Стандартна", "Default"),
+                    onClick = { onDismiss(); onOpenEmblem() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.FormatSize,
+                    title = tr("Текст на робочому столі", "Dashboard text"),
+                    subtitle = tr(
+                        "Розміри і кольори заголовків та підписів",
+                        "Headings and labels sizes/colors"
+                    ),
+                    onClick = { onDismiss(); onOpenDashboardText() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.FormatSize,
+                    title = tr("Тіні тексту", "Text shadow"),
+                    subtitle = if (settings.textShadowEnabledState.value)
+                        tr("Увімкнено", "On") else tr("Вимкнено", "Off"),
+                    onClick = { onDismiss(); onOpenTextShadow() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.ColorLens,
+                    title = tr("Інформаційні картки", "Information cards"),
+                    subtitle = tr(
+                        "Колір фону та прозорість",
+                        "Background color and opacity"
+                    ),
+                    onClick = { onDismiss(); onOpenInfoCards() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.ColorLens,
+                    title = tr("Верхній + нижній бар", "Top + bottom bar"),
+                    subtitle = tr(
+                        "Колір, яскравість, прозорість — спільно",
+                        "Color, brightness, opacity — together"
+                    ),
+                    onClick = { onDismiss(); onOpenTopBottomBar() }
+                )
+                InterfaceRow(
+                    icon = Icons.Default.ColorLens,
+                    title = tr("Бічне меню", "Side menu"),
+                    subtitle = tr(
+                        "Колір, яскравість, прозорість",
+                        "Color, brightness, opacity"
+                    ),
+                    onClick = { onDismiss(); onOpenDrawer() }
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
+    )
+}
+
+@Composable
+private fun InterfaceRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() },
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        subtitle,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                    )
+                }
+            }
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+        }
+    }
+}
+
+// ======================== Tile layout (grid / order / rename) ========================
+
+/**
+ * Діалог редагування сітки плиток головного меню. Тут користувач:
+ *  1) Вибирає одну з дозволених сіток (`SettingsManager.ALLOWED_TILE_GRID_PRESETS`),
+ *     наприклад 3×2 або 4×3. Загальна кількість плиток = cols * rows.
+ *  2) Перевпорядковує плитки кнопками ↑/↓.
+ *  3) Перейменовує плитки інлайн (порожнє значення = повернути дефолтну назву).
+ *  4) Додає/прибирає плитки з робочого столу: видимий список — це перші
+ *     cols*rows id з [SettingsManager.tileOrderState]. Решту id показуємо в
+ *     розділі «Доступні», користувач може «додати» їх назад у видиму частину.
+ */
+@Composable
+private fun TileLayoutDialog(
+    settings: SettingsManager,
+    onDismiss: () -> Unit
+) {
+    val cols by settings.tileGridColumnsState
+    val rows by settings.tileGridRowsState
+    val order by settings.tileOrderState
+    val labels by settings.tileLabelsState
+    val totalSlots = cols * rows
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Плитки головного меню", "Main menu tiles")) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(max = 520.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    tr("Сітка плиток", "Grid"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                FlowRowPresets(
+                    presets = SettingsManager.ALLOWED_TILE_GRID_PRESETS,
+                    selected = cols to rows,
+                    onSelect = { (c, r) -> settings.setTileGrid(c, r) }
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    tr("На робочому столі ($totalSlots)", "On dashboard ($totalSlots)"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                val visibleIds = order.mapNotNull { id ->
+                    QuickAccessActionRegistry.findById(id)?.let { id }
+                }.take(totalSlots)
+                if (visibleIds.isEmpty()) {
+                    Text(
+                        tr("Список порожній — додайте плитки нижче.", "Empty — add tiles below."),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                visibleIds.forEachIndexed { index, id ->
+                    val action = QuickAccessActionRegistry.findById(id) ?: return@forEachIndexed
+                    TileEditorRow(
+                        index = index,
+                        total = visibleIds.size,
+                        action = action,
+                        labelOverride = labels[id].orEmpty(),
+                        onMoveUp = {
+                            val list = order.toMutableList()
+                            val pos = list.indexOf(id)
+                            if (pos > 0) {
+                                list.removeAt(pos)
+                                list.add(pos - 1, id)
+                                settings.setTileOrder(list)
+                            }
+                        },
+                        onMoveDown = {
+                            val list = order.toMutableList()
+                            val pos = list.indexOf(id)
+                            if (pos in 0 until list.size - 1) {
+                                list.removeAt(pos)
+                                list.add(pos + 1, id)
+                                settings.setTileOrder(list)
+                            }
+                        },
+                        onRemove = {
+                            // Виштовхуємо плитку за межі видимої сітки: ставимо її
+                            // у самий кінець списку. Тоді наступна «прихована» плитка
+                            // піднімається на її місце автоматично.
+                            val list = order.toMutableList()
+                            list.remove(id)
+                            list.add(id)
+                            settings.setTileOrder(list)
+                        },
+                        onRename = { newLabel -> settings.setTileLabel(id, newLabel) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    tr("Доступні плитки", "Available tiles"),
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                val visibleSet = visibleIds.toSet()
+                val available = QuickAccessActionRegistry.all.filter { it.id !in visibleSet }
+                if (available.isEmpty()) {
+                    Text(
+                        tr("Усі доступні плитки вже на робочому столі.", "All tiles are on dashboard."),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                available.forEach { action ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                // «Додати на стіл» = пересуваємо id у видиму частину
+                                // списку. Беремо існуючий order, прибираємо id (якщо є),
+                                // вставляємо на позицію totalSlots - 1, інші посуваються.
+                                val list = order.toMutableList()
+                                list.remove(action.id)
+                                val insertAt = (totalSlots - 1).coerceAtMost(list.size)
+                                list.add(insertAt, action.id)
+                                settings.setTileOrder(list)
+                            },
+                        tonalElevation = 1.dp,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(action.icon, contentDescription = null)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                tr(action.labelUa, action.labelEn),
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(Icons.Default.Add, contentDescription = tr("Додати", "Add"))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } },
+        dismissButton = {
+            TextButton(onClick = {
+                settings.setTileGrid(SettingsManager.DEFAULT_TILE_GRID_COLUMNS, SettingsManager.DEFAULT_TILE_GRID_ROWS)
+                settings.setTileOrder(SettingsManager.DEFAULT_TILE_ORDER)
+                // Очищаємо custom-назви для ВСІХ зареєстрованих плиток, не лише
+                // тих, що входять у DEFAULT_TILE_ORDER. Інакше, якщо користувач
+                // перейменував напр. "Звіти" або "Витрати", старе ім'я залишалось
+                // би у SharedPreferences і "виринало" при поверненні плитки.
+                QuickAccessActionRegistry.all.forEach { action ->
+                    settings.setTileLabel(action.id, "")
+                }
+            }) { Text(tr("Скинути", "Reset")) }
+        }
+    )
+}
+
+@Composable
+private fun FlowRowPresets(
+    presets: List<Pair<Int, Int>>,
+    selected: Pair<Int, Int>,
+    onSelect: (Pair<Int, Int>) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        presets.forEach { preset ->
+            val isSelected = preset == selected
+            val border = if (isSelected) 2.dp else 1.dp
+            val borderColor = if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+            Surface(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(border, borderColor, RoundedCornerShape(10.dp))
+                    .clickable { onSelect(preset) },
+                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    else MaterialTheme.colorScheme.surface
+            ) {
+                Text(
+                    "${preset.first}×${preset.second}",
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TileEditorRow(
+    index: Int,
+    total: Int,
+    action: QuickAccessAction,
+    labelOverride: String,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+    onRename: (String) -> Unit
+) {
+    var editing by remember(action.id) { mutableStateOf(labelOverride) }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp)),
+        tonalElevation = 1.dp,
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(action.icon, contentDescription = null)
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    tr(action.labelUa, action.labelEn),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onMoveUp, enabled = index > 0) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = tr("Вгору", "Up"))
+                }
+                IconButton(onClick = onMoveDown, enabled = index < total - 1) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = tr("Вниз", "Down"))
+                }
+                IconButton(onClick = onRemove) {
+                    Icon(Icons.Default.Clear, contentDescription = tr("Прибрати", "Remove"))
+                }
+            }
+            OutlinedTextField(
+                value = editing,
+                onValueChange = {
+                    editing = it
+                    onRename(it)
+                },
+                label = {
+                    Text(
+                        tr("Назва (порожнє — стандартна)", "Label (empty = default)"),
+                        fontSize = 11.sp
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

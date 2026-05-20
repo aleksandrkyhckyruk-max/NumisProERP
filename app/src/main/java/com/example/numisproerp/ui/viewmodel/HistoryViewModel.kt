@@ -35,7 +35,14 @@ data class HistoryEntry(
     val quantity: Int?,
     val amount: Double,
     val sign: Int,
-    val comment: String
+    val comment: String,
+    /**
+     * Дочірні записи, якщо ця HistoryEntry — це синтетична «згрупована чека»
+     * по постачальнику + день. У звичайних рядках лишається порожнім.
+     * Завдяки цьому UI може спокійно показувати один рядок, а при тапі
+     * розкривати список позицій.
+     */
+    val subEntries: List<HistoryEntry> = emptyList()
 )
 
 /**
@@ -155,9 +162,62 @@ class HistoryViewModel @Inject constructor(
         } else {
             state.entries.filter { it.type == state.selectedType }
         }
+        val grouped = groupPurchasesBySupplierDay(filtered)
         return when (state.sort) {
-            HistorySort.DATE_DESC -> filtered.sortedByDescending { it.date }
-            HistorySort.DATE_ASC -> filtered.sortedBy { it.date }
+            HistorySort.DATE_DESC -> grouped.sortedByDescending { it.date }
+            HistorySort.DATE_ASC -> grouped.sortedBy { it.date }
         }
+    }
+
+    /**
+     * Збираємо в одну синтетичну «чеку» закупівлі, що мають того самого
+     * постачальника та припадають на той самий календарний день. Кінцевий
+     * рядок показує сумарну вартість і кількість позицій, а оригінальні
+     * рядки лишаються у `subEntries`, щоб UI міг їх розкрити при тапі.
+     * Усі інші типи (Продаж/Списання/Витрата) проходять без змін.
+     */
+    private fun groupPurchasesBySupplierDay(entries: List<HistoryEntry>): List<HistoryEntry> {
+        if (entries.isEmpty()) return entries
+        val purchases = entries.filter { it.type == HistoryEntryType.PURCHASE }
+        val others = entries.filter { it.type != HistoryEntryType.PURCHASE }
+        if (purchases.isEmpty()) return entries
+
+        // Ключ дня — локальний календарний день, а не UTC. Інакше для України
+        // (UTC+2/+3) закупівлі біля півночі потрапляли б у різні «дні».
+        // Використовуємо `Calendar` із системним часовим поясом і кодуємо
+        // (рік, день року) у Long: рік * 1000 + dayOfYear.
+        val cal = java.util.Calendar.getInstance()
+        fun localDayKey(ts: Long): Long {
+            cal.timeInMillis = ts
+            return cal.get(java.util.Calendar.YEAR) * 1000L + cal.get(java.util.Calendar.DAY_OF_YEAR)
+        }
+
+        val grouped = mutableListOf<HistoryEntry>()
+        purchases
+            .groupBy { Pair(it.counterparty.trim(), localDayKey(it.date)) }
+            .forEach { (key, items) ->
+                if (items.size <= 1) {
+                    grouped.add(items.first())
+                } else {
+                    val sorted = items.sortedByDescending { it.date }
+                    val total = sorted.sumOf { it.amount }
+                    val first = sorted.first()
+                    grouped.add(
+                        HistoryEntry(
+                            id = "purchase-group-" + key.first + "-" + key.second,
+                            type = HistoryEntryType.PURCHASE,
+                            date = first.date,
+                            productName = "",
+                            counterparty = first.counterparty,
+                            quantity = sorted.size,
+                            amount = total,
+                            sign = -1,
+                            comment = "",
+                            subEntries = sorted
+                        )
+                    )
+                }
+            }
+        return grouped + others
     }
 }
