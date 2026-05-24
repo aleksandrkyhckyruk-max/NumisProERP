@@ -506,6 +506,65 @@ class SettingsManager @Inject constructor(
             prefs.edit().putFloat(KEY_INFO_CARD_BG_ALPHA, clamped).apply()
         }
 
+    // ==================== ОБВОДКА (КОНТУР) ІНФО-КАРТОК ====================
+    // Користувач у фідбеку попросив можливість додати контур навколо
+    // інформаційних карток на робочому столі. Це особливо корисно коли
+    // прозорість фону ставлять у 0 — без контуру картки «зливаються» з
+    // фоном. Окремий вкл/викл-тогл, колір + прозорість.
+
+    private val _infoCardBorderEnabled: MutableState<Boolean> =
+        mutableStateOf(prefs.getBoolean(KEY_INFO_CARD_BORDER_ENABLED, false))
+
+    val infoCardBorderEnabledState: MutableState<Boolean>
+        get() = _infoCardBorderEnabled
+
+    var infoCardBorderEnabled: Boolean
+        get() = _infoCardBorderEnabled.value
+        set(value) {
+            _infoCardBorderEnabled.value = value
+            prefs.edit().putBoolean(KEY_INFO_CARD_BORDER_ENABLED, value).apply()
+        }
+
+    // Колір обводки у hex без `#`. За замовчуванням — нейтральний сірий, який
+    // буде помітний і на світлих, і на темних фонах.
+    private val _infoCardBorderColor: MutableState<String> =
+        mutableStateOf(
+            prefs.getString(KEY_INFO_CARD_BORDER_COLOR, DEFAULT_INFO_CARD_BORDER_COLOR)
+                ?: DEFAULT_INFO_CARD_BORDER_COLOR
+        )
+
+    val infoCardBorderColorState: MutableState<String>
+        get() = _infoCardBorderColor
+
+    var infoCardBorderColor: String
+        get() = _infoCardBorderColor.value
+        set(value) {
+            _infoCardBorderColor.value = value
+            prefs.edit().putString(KEY_INFO_CARD_BORDER_COLOR, value).apply()
+        }
+
+    private val _infoCardBorderOpacity: MutableState<Float> =
+        mutableStateOf(
+            prefs.getFloat(KEY_INFO_CARD_BORDER_OPACITY, DEFAULT_INFO_CARD_BORDER_OPACITY)
+                .coerceIn(0f, 1f)
+        )
+
+    val infoCardBorderOpacityState: MutableState<Float>
+        get() = _infoCardBorderOpacity
+
+    var infoCardBorderOpacity: Float
+        get() = _infoCardBorderOpacity.value
+        set(value) {
+            val clamped = value.coerceIn(0f, 1f)
+            _infoCardBorderOpacity.value = clamped
+            prefs.edit().putFloat(KEY_INFO_CARD_BORDER_OPACITY, clamped).apply()
+        }
+
+    // Товщина обводки у dp (фіксована, без слайдера — щоб не плодити
+    // налаштування). 1.5dp — стандартний візуальний поріг видимості.
+    val infoCardBorderWidthDp: Float
+        get() = DEFAULT_INFO_CARD_BORDER_WIDTH_DP
+
     // ==================== ТІНІ ТЕКСТУ ====================
     // Глобальне налаштування тіні для основних текстів на робочому столі
     // (заголовок головного екрана, підписи плиток, заголовки секцій).
@@ -921,6 +980,9 @@ class SettingsManager @Inject constructor(
         private const val KEY_TILE_LABEL_COLOR = "tile_label_color"
         private const val KEY_INFO_CARD_BG_COLOR = "info_card_bg_color"
         private const val KEY_INFO_CARD_BG_ALPHA = "info_card_bg_alpha"
+        private const val KEY_INFO_CARD_BORDER_ENABLED = "info_card_border_enabled"
+        private const val KEY_INFO_CARD_BORDER_COLOR = "info_card_border_color"
+        private const val KEY_INFO_CARD_BORDER_OPACITY = "info_card_border_opacity"
         private const val KEY_TOP_BAR_COLOR = "top_bar_color"
         private const val KEY_TOP_BAR_BRIGHTNESS = "top_bar_brightness"
         private const val KEY_BOTTOM_BAR_COLOR = "bottom_bar_color"
@@ -1004,6 +1066,10 @@ class SettingsManager @Inject constructor(
         const val MAX_TILE_LABEL_FONT_SIZE = 18
         // 1.0 = непрозорі картки (старий вигляд).
         const val DEFAULT_INFO_CARD_BG_ALPHA = 1.0f
+        // Обводка інфо-карток: за замовч. вимкнена, сіра, не зовсім непрозора.
+        const val DEFAULT_INFO_CARD_BORDER_COLOR = "808080"
+        const val DEFAULT_INFO_CARD_BORDER_OPACITY = 1.0f
+        const val DEFAULT_INFO_CARD_BORDER_WIDTH_DP = 1.5f
         // Межі «освітлення/затемнення» для барів. -0.5 = повністю чорний,
         // +0.5 = повністю білий, 0 = колір без змін. Бари завжди непрозорі —
         // повзунок лише перетворює базовий колір, а не задає `alpha`.

@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,7 +46,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ImportExport
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocalAtm
 import androidx.compose.material.icons.outlined.Publish
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -71,6 +74,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import com.numisproerp.ui.theme.toComposeShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -1023,6 +1028,49 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
  * - Один глобальний повзунок керує прозорістю фону всіх плиток
  *   (записує в `settings.tileBackgroundAlpha`).
  */
+/**
+ * Live-прев'ю для діалогу «Значки головного меню». Показує одну іконку у
+ * круглому фоні точно з тими параметрами кольору / прозорості / розміру,
+ * які користувач щойно поставив. Спочатку показуємо лейбл «Перегляд», далі
+ * сама плитка по центру.
+ */
+@Composable
+private fun TileIconPreview(
+    bgColorHex: String,
+    bgAlpha: Float,
+    iconSizeDp: Int
+) {
+    val safeAlpha = bgAlpha.coerceIn(0f, 1f)
+    val bg = com.numisproerp.ui.theme.parseHexColorOrNull(bgColorHex)
+        ?.copy(alpha = safeAlpha)
+        ?: MaterialTheme.colorScheme.primaryContainer.copy(alpha = safeAlpha)
+    Text(
+        text = tr("Попередній перегляд", "Preview"),
+        fontSize = 11.sp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(iconSizeDp.dp + 16.dp)
+                .clip(RoundedCornerShape(IOSDesign.CardCornerRadius))
+                .background(bg),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.LocalAtm,
+                contentDescription = null,
+                tint = androidx.compose.ui.graphics.Color.White,
+                modifier = Modifier.size(iconSizeDp.dp)
+            )
+        }
+    }
+}
+
 @Composable
 private fun TileIconsDialog(
     settings: SettingsManager,
@@ -1059,6 +1107,15 @@ private fun TileIconsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Live-прев'ю: маленька плитка-зразок, що реагує на зміни
+                // повзунків і вибір кольору. Так одразу видно ефект, без
+                // потреби закривати діалог і повертатись на дашборд.
+                TileIconPreview(
+                    bgColorHex = bgColor,
+                    bgAlpha = alpha,
+                    iconSizeDp = iconSize
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 // Розмір значка (масштаб для збільшення власних фото).
                 Text(
                     tr("Розмір значка: ${iconSize}dp", "Icon size: ${iconSize}dp"),
@@ -1203,6 +1260,67 @@ private fun BackgroundImageDialog(currentPath: String, onPickImage: () -> Unit, 
     )
 }
 
+/**
+ * Live-прев'ю емблеми: показує реальну емблему користувача (або стандартну)
+ * у круглому контурі точно того розміру / зі зсувом, що зараз задані. Зсуви
+ * масштабуються (×0.3) до меж картки попереднього перегляду, щоб не зникнути
+ * за межі. Кожна зміна слайдера одразу видно у прев'ю.
+ */
+@Composable
+private fun EmblemPreview(
+    settings: SettingsManager,
+    emblemPath: String,
+    emblemSize: Int
+) {
+    val offsetXState by settings.emblemOffsetXState
+    val offsetYState by settings.emblemOffsetYState
+    val previewSize = (emblemSize / 1.4f).toInt().coerceAtLeast(40)
+    // Картка попереднього перегляду фіксованої висоти ~100dp; зсув стискаємо.
+    val factor = 0.3f
+    Text(
+        text = tr("Попередній перегляд", "Preview"),
+        fontSize = 11.sp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(110.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        val sizeDp = previewSize.dp
+        val xDp = (offsetXState * factor).dp
+        val yDp = (offsetYState * factor).dp
+        val corner = sizeDp / 2
+        if (emblemPath.isNotBlank()) {
+            val context = LocalContext.current
+            val request = androidx.compose.runtime.remember(emblemPath) {
+                coil.request.ImageRequest.Builder(context).data(java.io.File(emblemPath)).build()
+            }
+            coil.compose.AsyncImage(
+                model = request,
+                contentDescription = null,
+                modifier = Modifier
+                    .offset(x = xDp, y = yDp)
+                    .size(sizeDp)
+                    .clip(RoundedCornerShape(corner)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = com.numisproerp.R.drawable.oleg_smile_emblem),
+                contentDescription = null,
+                modifier = Modifier
+                    .offset(x = xDp, y = yDp)
+                    .size(sizeDp)
+                    .clip(RoundedCornerShape(corner))
+            )
+        }
+    }
+}
+
 // ======================== Emblem dialog ========================
 
 /**
@@ -1228,6 +1346,15 @@ private fun EmblemDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Live-прев'ю: реальна емблема з поточними розміром і
+                // зсувом. Зсув обмежено візуально межами картки, але
+                // показуємо ефект напрямки.
+                EmblemPreview(
+                    settings = settings,
+                    emblemPath = emblemPath,
+                    emblemSize = emblemSize
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     if (emblemPath.isNotBlank())
                         tr("Поточна: користувацька", "Current: custom")
@@ -1498,8 +1625,11 @@ private fun InfoCardsDialog(
     settings: SettingsManager,
     onDismiss: () -> Unit
 ) {
-    var bgColor by settings.infoCardBackgroundColorState
-    var alpha by settings.infoCardBackgroundAlphaState
+    val bgColor by settings.infoCardBackgroundColorState
+    val alpha by settings.infoCardBackgroundAlphaState
+    val borderEnabled by settings.infoCardBorderEnabledState
+    val borderColor by settings.infoCardBorderColorState
+    val borderOpacity by settings.infoCardBorderOpacityState
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1509,6 +1639,18 @@ private fun InfoCardsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Live-прев'ю — реальна картка з поточними налаштуваннями.
+                // Зміни кольору/прозорості/обводки одразу видно тут, без
+                // потреби закривати діалог і повертатись на дашборд.
+                InfoCardPreview(
+                    bgColorHex = bgColor,
+                    bgAlpha = alpha,
+                    borderEnabled = borderEnabled,
+                    borderColorHex = borderColor,
+                    borderOpacity = borderOpacity
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     tr("Колір фону карток", "Card background color"),
                     fontSize = 13.sp, fontWeight = FontWeight.SemiBold
@@ -1536,10 +1678,107 @@ private fun InfoCardsDialog(
                     ),
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = tr("Обводка (контур) карток", "Card border"),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = borderEnabled,
+                        onCheckedChange = { settings.infoCardBorderEnabled = it }
+                    )
+                }
+                Text(
+                    tr(
+                        "Корисно коли прозорість фону низька — без обводки картки зливаються з фоном.",
+                        "Useful when background opacity is low — cards blend into the wallpaper otherwise."
+                    ),
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                if (borderEnabled) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        tr("Колір обводки", "Border color"),
+                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                    )
+                    ColorPickerRow(
+                        currentHex = borderColor,
+                        onSelect = { settings.infoCardBorderColor = it }
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val borderPct = (borderOpacity * 100).toInt()
+                    Text(
+                        tr("Прозорість обводки: $borderPct%", "Border opacity: $borderPct%"),
+                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                    )
+                    Slider(
+                        value = borderOpacity,
+                        onValueChange = { settings.infoCardBorderOpacity = it },
+                        valueRange = 0f..1f
+                    )
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Готово", "Done")) } }
     )
+}
+
+/**
+ * Маленька «жива» картка-зразок для діалогу налаштувань інфо-карток.
+ * Малює ту саму комбінацію фону/прозорості/обводки, що буде застосована
+ * на робочому столі — так користувач бачить ефект одразу всередині діалогу.
+ */
+@Composable
+private fun InfoCardPreview(
+    bgColorHex: String,
+    bgAlpha: Float,
+    borderEnabled: Boolean,
+    borderColorHex: String,
+    borderOpacity: Float
+) {
+    val safeAlpha = bgAlpha.coerceIn(0f, 1f)
+    val bg = com.numisproerp.ui.theme.parseHexColorOrNull(bgColorHex)
+        ?.copy(alpha = safeAlpha)
+        ?: MaterialTheme.colorScheme.surface.copy(alpha = safeAlpha)
+    val border: androidx.compose.foundation.BorderStroke? = if (borderEnabled) {
+        val parsed = com.numisproerp.ui.theme.parseHexColorOrNull(borderColorHex)
+            ?: androidx.compose.ui.graphics.Color(0xFF808080)
+        androidx.compose.foundation.BorderStroke(
+            width = SettingsManager.DEFAULT_INFO_CARD_BORDER_WIDTH_DP.dp,
+            color = parsed.copy(alpha = borderOpacity.coerceIn(0f, 1f))
+        )
+    } else null
+    Text(
+        text = tr("Попередній перегляд", "Preview"),
+        fontSize = 11.sp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+    )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = bg),
+        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation),
+        border = border
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = tr("Загальний баланс", "Total balance"),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Text(
+                text = "₴ 12 345,00",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
 }
 
 /**
@@ -1551,6 +1790,44 @@ private fun InfoCardsDialog(
  * налаштування — увімкнути, чорний колір, X=2 / Y=2, непрозорість ≥70%,
  * радіус 2-4.
  */
+/**
+ * Прев'ю тіні тексту: «Sample / Зразок 12 345,00 ₴» з застосованою тінню
+ * згідно з поточними слайдерами. Якщо тіні вимкнені — показуємо текст без
+ * тіні (та підказку у напівпрозорому шрифті). Зразок використовує
+ * [TextShadowConfig.toComposeShadow] — той самий код, що й бойовий рендер,
+ * щоб не було «розходження прев'ю і реальності».
+ */
+@Composable
+private fun TextShadowPreview(
+    enabled: Boolean,
+    colorHex: String,
+    offsetX: Float,
+    offsetY: Float,
+    opacity: Float,
+    blurRadius: Float
+) {
+    val cfg = com.numisproerp.ui.theme.TextShadowConfig(
+        enabled = enabled,
+        colorHex = colorHex,
+        offsetX = offsetX,
+        offsetY = offsetY,
+        opacity = opacity,
+        blurRadius = blurRadius
+    )
+    val shadow = cfg.toComposeShadow(LocalDensity.current.density)
+    Text(
+        text = tr("Попередній перегляд", "Preview"),
+        fontSize = 11.sp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+    )
+    Text(
+        text = tr("Зразок: Закупівля 12 345,00 ₴", "Sample: Purchase 12,345.00 UAH"),
+        fontSize = 18.sp,
+        fontWeight = FontWeight.SemiBold,
+        style = MaterialTheme.typography.titleMedium.copy(shadow = shadow)
+    )
+}
+
 @Composable
 private fun TextShadowDialog(
     settings: SettingsManager,
@@ -1570,6 +1847,17 @@ private fun TextShadowDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Live-прев'ю — той самий текст із застосованою тінню,
+                // оновлюється на льоту при зміні будь-якого повзунка.
+                TextShadowPreview(
+                    enabled = enabled,
+                    colorHex = colorHex,
+                    offsetX = offsetX,
+                    offsetY = offsetY,
+                    opacity = opacity,
+                    blurRadius = blurRadius
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = tr("Увімкнути тіні", "Enable shadow"),

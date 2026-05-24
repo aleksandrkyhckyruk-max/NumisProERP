@@ -79,8 +79,12 @@ import com.numisproerp.ui.theme.LocalTileLabels
 import com.numisproerp.ui.theme.LocalTileOrder
 import com.numisproerp.ui.i18n.LocalAppLanguage
 import com.numisproerp.data.settings.AppLanguage
+import androidx.compose.foundation.BorderStroke
 import com.numisproerp.ui.theme.LocalInfoCardBackgroundAlpha
 import com.numisproerp.ui.theme.LocalInfoCardBackgroundColor
+import com.numisproerp.ui.theme.LocalInfoCardBorderColor
+import com.numisproerp.ui.theme.LocalInfoCardBorderEnabled
+import com.numisproerp.ui.theme.LocalInfoCardBorderOpacity
 import com.numisproerp.ui.theme.LocalTileBackgroundAlpha
 import com.numisproerp.ui.theme.LocalTileBackgroundColor
 import com.numisproerp.ui.theme.LocalTextShadowConfig
@@ -390,13 +394,15 @@ fun StatsCardClickable(
     val resolvedColor = parseHexColorOrNull(LocalInfoCardBackgroundColor.current)
         ?.copy(alpha = infoAlpha)
         ?: backgroundColor.copy(alpha = infoAlpha)
+    val border = rememberInfoCardBorder()
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = resolvedColor),
         shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
-        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
+        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation),
+        border = border
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -429,11 +435,13 @@ fun MonthlyStatCardClickable(
     val infoAlpha = LocalInfoCardBackgroundAlpha.current.coerceIn(0f, 1f)
     val infoBg = parseHexColorOrNull(LocalInfoCardBackgroundColor.current)
         ?: MaterialTheme.colorScheme.surface
+    val border = rememberInfoCardBorder()
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
         colors = CardDefaults.cardColors(containerColor = infoBg.copy(alpha = infoAlpha)),
-        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
+        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation),
+        border = border
     ) {
         Row(
             modifier = Modifier
@@ -829,6 +837,21 @@ private fun PremiumQuickAccessButton(
     }
 }
 
+/**
+ * Поточна обводка інфо-карток згідно з налаштуваннями користувача.
+ * Повертає `null`, якщо обводка вимкнена — Card відрендериться без бордеру.
+ */
+@Composable
+private fun rememberInfoCardBorder(): BorderStroke? {
+    val enabled = LocalInfoCardBorderEnabled.current
+    val widthDp = com.numisproerp.data.settings.SettingsManager.DEFAULT_INFO_CARD_BORDER_WIDTH_DP.dp
+    val opacity = LocalInfoCardBorderOpacity.current.coerceIn(0f, 1f)
+    if (!enabled) return null
+    val parsed = parseHexColorOrNull(LocalInfoCardBorderColor.current)
+        ?: Color(0xFF808080)
+    return BorderStroke(width = widthDp, color = parsed.copy(alpha = opacity))
+}
+
 @Composable
 fun RecentTransactionItem(transaction: RecentTransaction) {
     val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
@@ -837,12 +860,14 @@ fun RecentTransactionItem(transaction: RecentTransaction) {
     val infoAlpha = LocalInfoCardBackgroundAlpha.current.coerceIn(0f, 1f)
     val infoBg = parseHexColorOrNull(LocalInfoCardBackgroundColor.current)
         ?: MaterialTheme.colorScheme.surface
+    val border = rememberInfoCardBorder()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(IOSDesign.CardCornerRadius),
         colors = CardDefaults.cardColors(containerColor = infoBg.copy(alpha = infoAlpha)),
-        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation)
+        elevation = CardDefaults.cardElevation(defaultElevation = IOSDesign.CardElevation),
+        border = border
     ) {
         Row(
             modifier = Modifier
