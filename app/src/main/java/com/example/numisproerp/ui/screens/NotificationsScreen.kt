@@ -190,7 +190,7 @@ private fun SwipeableNotificationCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = { SwipeDismissBackground() },
-        content = { NotificationCard(notification) }
+        content = { NotificationCard(notification = notification, onDelete = onDismiss) }
     )
 }
 
@@ -227,7 +227,7 @@ private fun SwipeDismissBackground() {
 }
 
 @Composable
-private fun NotificationCard(notification: NotificationItem) {
+private fun NotificationCard(notification: NotificationItem, onDelete: (() -> Unit)? = null) {
     val (icon, tint) = when (notification.severity) {
         NotificationSeverity.CRITICAL -> Icons.Outlined.ErrorOutline to AccentRed
         NotificationSeverity.WARNING -> Icons.Outlined.WarningAmber to AccentOrange
@@ -243,7 +243,7 @@ private fun NotificationCard(notification: NotificationItem) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(start = 14.dp, top = 14.dp, bottom = 14.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -252,7 +252,7 @@ private fun NotificationCard(notification: NotificationItem) {
                 tint = tint
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = titleText,
                     fontSize = 14.sp,
@@ -264,6 +264,18 @@ private fun NotificationCard(notification: NotificationItem) {
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
+            }
+            if (onDelete != null) {
+                // Явна кнопка «Видалити»: окрім свайпу — щоб користувач не мусив
+                // вгадувати жест. Натискання остаточно прибирає поточне сповіщення
+                // (з відповідним id) у dismissed-сет.
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = tr("Видалити", "Delete"),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
     }

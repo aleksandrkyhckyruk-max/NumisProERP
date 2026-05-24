@@ -139,15 +139,13 @@ fun DashboardContent(
     onNavigateToReports: () -> Unit,
     onNavigateToDetails: (String, String) -> Unit
 ) {
-    val currentDate = SimpleDateFormat("LLLL yyyy", Locale("uk")).format(Date())
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            DashboardHeader(currentDate = currentDate)
+            DashboardHeader()
         }
 
         item {
@@ -209,7 +207,7 @@ fun DashboardContent(
 }
 
 @Composable
-private fun DashboardHeader(currentDate: String) {
+private fun DashboardHeader() {
     val theme = LocalAppTheme.current
     val customEmblemPath = LocalEmblemImagePath.current
     val emblemSizeDp = LocalEmblemSize.current.dp
@@ -221,7 +219,7 @@ private fun DashboardHeader(currentDate: String) {
     val titleOffsetX = LocalDashboardTitleOffsetX.current.dp
     val titleOffsetY = LocalDashboardTitleOffsetY.current.dp
     if (theme == AppTheme.OLEG_SMILE_PREMIUM) {
-        PremiumDashboardHeader(currentDate = currentDate)
+        PremiumDashboardHeader()
         return
     }
     if (customEmblemPath.isNotBlank() ||
@@ -248,32 +246,8 @@ private fun DashboardHeader(currentDate: String) {
                 modifier = Modifier.offset(x = offsetX, y = offsetY)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            // Підпис "NumisProERP — облік та каталогізація" прибрано на прохання користувача:
-            // він візуально шумить біля основного заголовка. Дата залишається.
-            Column {
-                Text(
-                    text = titleText,
-                    fontSize = titleSizeSp,
-                    fontWeight = FontWeight.Bold,
-                    color = resolvedTitleColor,
-                    style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
-                    modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
-                )
-                Text(
-                    text = currentDate,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    style = MaterialTheme.typography.bodyMedium.copy(shadow = titleShadow),
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
-        }
-    } else {
-        val titleText = if (userTitle.isNotBlank()) userTitle else "NumisProERP"
-        val resolvedTitleColor = parseHexColorOrNull(titleColorHex)
-            ?: MaterialTheme.colorScheme.primary
-        val titleShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
-        Column {
+            // Підпис "NumisProERP — облік та каталогізація" і поточна дата прибрані
+            // на прохання користувача — вони лише захаращували шапку.
             Text(
                 text = titleText,
                 fontSize = titleSizeSp,
@@ -282,14 +256,20 @@ private fun DashboardHeader(currentDate: String) {
                 style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
                 modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
             )
-            Text(
-                text = currentDate,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                style = MaterialTheme.typography.bodyMedium.copy(shadow = titleShadow),
-                modifier = Modifier.padding(top = 4.dp)
-            )
         }
+    } else {
+        val titleText = if (userTitle.isNotBlank()) userTitle else "NumisProERP"
+        val resolvedTitleColor = parseHexColorOrNull(titleColorHex)
+            ?: MaterialTheme.colorScheme.primary
+        val titleShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
+        Text(
+            text = titleText,
+            fontSize = titleSizeSp,
+            fontWeight = FontWeight.Bold,
+            color = resolvedTitleColor,
+            style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
+            modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
+        )
     }
 }
 
@@ -332,7 +312,7 @@ private fun EmblemImage(
 }
 
 @Composable
-private fun PremiumDashboardHeader(currentDate: String) {
+private fun PremiumDashboardHeader() {
     // Преміум 3D — окрема емблема "OLEG-SMILE Coin" з прозорим фоном.
     val emblemSizeDp = LocalEmblemSize.current.dp
     val offsetX = LocalEmblemOffsetX.current.dp
@@ -390,13 +370,7 @@ private fun PremiumDashboardHeader(currentDate: String) {
                     )
                 }
             }
-            Text(
-                text = currentDate,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                style = MaterialTheme.typography.bodyMedium.copy(shadow = shadow),
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            // Дата прибрана з преміум-шапки на прохання користувача.
         }
     }
 }

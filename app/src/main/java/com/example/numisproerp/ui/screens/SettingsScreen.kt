@@ -746,7 +746,10 @@ private fun ThemeDialog(current: AppTheme, onSelect: (AppTheme) -> Unit, onDismi
         onDismissRequest = onDismiss,
         title = { Text(tr("Тема оформлення", "Theme")) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 ThemeOptionRow(tr("Стандартна", "Default"), selected = current == AppTheme.DEFAULT) { onSelect(AppTheme.DEFAULT) }
                 ThemeOptionRow("OlegSmile", selected = current == AppTheme.OLEG_SMILE, emblem = R.drawable.oleg_smile_emblem) { onSelect(AppTheme.OLEG_SMILE) }
                 ThemeOptionRow("OlegSmile v2", selected = current == AppTheme.OLEG_SMILE_V2, emblem = R.drawable.oleg_smile_emblem) { onSelect(AppTheme.OLEG_SMILE_V2) }
@@ -831,7 +834,10 @@ private fun DataDialog(
         onDismissRequest = onDismiss,
         title = { Text(tr("Дані", "Data")) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Button(onClick = { onImport(); onDismiss() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Outlined.Publish, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -869,24 +875,20 @@ private fun FontsDialog(settings: SettingsManager, onDismiss: () -> Unit) {
     var fontFamily by settings.fontFamilyState
     var fontColor by settings.fontColorState
 
-    // Список доступних шрифтів: спершу системні (system / serif / sans-serif / monospace),
-    // далі — Google Fonts з [com.numisproerp.ui.theme.GoogleFontOptions] (Roboto,
-    // Montserrat, Inter, Lora, Playfair Display, Poppins, Nunito, Open Sans).
-    // Системні залишаємо як швидкі/легкі опції без мережі.
+    // Список доступних шрифтів. На запит користувача прибрали:
+    //  - системний "System" (FontFamily.Default) — той самий рендер що й
+    //    sans-serif, тож виглядав як «нічого не змінюється» між пунктами.
+    //  - "sans-serif" / "serif" / "monospace" — у користувача вони не давали
+    //    візуально помітного результату (часто збігаються із системним fallback),
+    //    тож сприймались як неробочі.
+    //  - Google Fonts онлайн (`GoogleFontOptions`) — вимагали Play Services і
+    //    часто просто фолбекали в системний шрифт без видимого ефекту.
+    // У списку залишаємо лише бандл TTF з `res/font/` — вони ВСІ дають
+    // гарантовано різний накреслення.
     data class FamilyEntry(val key: String, val display: String)
-    // Спершу системні (мить, без мережі), далі офлайн-шрифти (бандл — теж без
-    // мережі, з гарантованою візуальною різноманітністю), потім Google Fonts
-    // як онлайн-опція. Це відповідає вимогам користувача «без всяких гугл програм».
     val families: List<FamilyEntry> = remember {
         buildList {
-            add(FamilyEntry("system", "System"))
-            add(FamilyEntry("sans-serif", "Sans-serif"))
-            add(FamilyEntry("serif", "Serif"))
-            add(FamilyEntry("monospace", "Monospace"))
             com.numisproerp.ui.theme.OfflineFontOptions.forEach { option ->
-                add(FamilyEntry(option.key, option.displayName))
-            }
-            com.numisproerp.ui.theme.GoogleFontOptions.forEach { option ->
                 add(FamilyEntry(option.key, option.displayName))
             }
         }
@@ -1177,7 +1179,10 @@ private fun BackgroundImageDialog(currentPath: String, onPickImage: () -> Unit, 
         onDismissRequest = onDismiss,
         title = { Text(tr("Фоновий малюнок", "Background image")) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 if (currentPath.isNotBlank()) {
                     Text(
                         tr("Поточний: встановлено", "Current: set"),
@@ -2070,10 +2075,13 @@ private fun TileLayoutDialog(
         onDismissRequest = onDismiss,
         title = { Text(tr("Плитки головного меню", "Main menu tiles")) },
         text = {
+            // Раніше тут стояв `.heightIn(max = 520.dp)`. Цей кеп штучно
+            // обрізав висоту скрол-контейнера — користувач бачив лише ~3 плитки
+            // зі списку. AlertDialog має власну стелю висоти (близько 65% екрана),
+            // тож додаткове обмеження не потрібне: `verticalScroll`
+            // дозволяє прокрутити решту вмісту в межах діалогу.
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .heightIn(max = 520.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
