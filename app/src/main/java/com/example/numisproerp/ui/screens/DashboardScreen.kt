@@ -23,13 +23,26 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.LocalAtm
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -100,7 +113,9 @@ import androidx.compose.ui.layout.ContentScale
 import java.io.File
 import com.numisproerp.ui.viewmodel.DashboardViewModel
 import com.numisproerp.ui.viewmodel.DashboardData
+import com.numisproerp.ui.viewmodel.PeriodStats
 import com.numisproerp.ui.viewmodel.RecentTransaction
+import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -125,8 +140,12 @@ fun DashboardScreen(
             CircularProgressIndicator()
         }
     } else {
+        val periodStats by viewModel.periodStats.collectAsState()
         DashboardContent(
             data = dashboardData,
+            periodStats = periodStats,
+            onLoadPeriodStats = viewModel::loadStatsForRange,
+            onResetPeriodStats = viewModel::resetPeriodStats,
             onNavigate = { route -> navController.navigate(route) },
             onNavigateToReports = { navController.navigate(Screen.Reports.route) },
             onNavigateToDetails = { type, title ->
@@ -139,17 +158,21 @@ fun DashboardScreen(
 @Composable
 fun DashboardContent(
     data: DashboardData,
+    periodStats: PeriodStats?,
+    onLoadPeriodStats: (Long, Long) -> Unit,
+    onResetPeriodStats: () -> Unit,
     onNavigate: (String) -> Unit,
     onNavigateToReports: () -> Unit,
     onNavigateToDetails: (String, String) -> Unit
 ) {
+    var showCalendarDialog by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            DashboardHeader()
+            DashboardHeader(onCalendarTap = { showCalendarDialog = true })
         }
 
         item {
@@ -208,10 +231,21 @@ fun DashboardContent(
             RecentTransactionItem(transaction = transaction)
         }
     }
+
+    if (showCalendarDialog) {
+        DashboardCalendarDialog(
+            periodStats = periodStats,
+            onLoadStats = onLoadPeriodStats,
+            onDismiss = {
+                showCalendarDialog = false
+                onResetPeriodStats()
+            }
+        )
+    }
 }
 
 @Composable
-private fun DashboardHeader() {
+private fun DashboardHeader(onCalendarTap: () -> Unit = {}) {
     val theme = LocalAppTheme.current
     val customEmblemPath = LocalEmblemImagePath.current
     val emblemSizeDp = LocalEmblemSize.current.dp
@@ -223,7 +257,7 @@ private fun DashboardHeader() {
     val titleOffsetX = LocalDashboardTitleOffsetX.current.dp
     val titleOffsetY = LocalDashboardTitleOffsetY.current.dp
     if (theme == AppTheme.OLEG_SMILE_PREMIUM) {
-        PremiumDashboardHeader()
+        PremiumDashboardHeader(onCalendarTap = onCalendarTap)
         return
     }
     if (customEmblemPath.isNotBlank() ||
@@ -260,19 +294,45 @@ private fun DashboardHeader() {
                 style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
                 modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
             )
+            Spacer(modifier = Modifier.weight(1f))
+            CalendarHeaderButton(onClick = onCalendarTap)
         }
     } else {
         val titleText = if (userTitle.isNotBlank()) userTitle else "NumisProERP"
         val resolvedTitleColor = parseHexColorOrNull(titleColorHex)
             ?: MaterialTheme.colorScheme.primary
         val titleShadow = LocalTextShadowConfig.current.toComposeShadow(LocalDensity.current.density)
-        Text(
-            text = titleText,
-            fontSize = titleSizeSp,
-            fontWeight = FontWeight.Bold,
-            color = resolvedTitleColor,
-            style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
-            modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = titleText,
+                fontSize = titleSizeSp,
+                fontWeight = FontWeight.Bold,
+                color = resolvedTitleColor,
+                style = MaterialTheme.typography.bodyLarge.copy(shadow = titleShadow),
+                modifier = Modifier.offset(x = titleOffsetX, y = titleOffsetY)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            CalendarHeaderButton(onClick = onCalendarTap)
+        }
+    }
+}
+
+/**
+ * Кнопка-календар у правому куті шапки дашборда. За тапом відкриває
+ * `DashboardCalendarDialog`, де користувач вибирає день/місяць і одразу
+ * бачить підсумки продажів/закупок/прибутку за вибраний період.
+ */
+@Composable
+private fun CalendarHeaderButton(onClick: () -> Unit) {
+    val tint = MaterialTheme.colorScheme.primary
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = Icons.Outlined.CalendarMonth,
+            contentDescription = tr("Календар підсумків", "Summary calendar"),
+            tint = tint
         )
     }
 }
@@ -316,7 +376,7 @@ private fun EmblemImage(
 }
 
 @Composable
-private fun PremiumDashboardHeader() {
+private fun PremiumDashboardHeader(onCalendarTap: () -> Unit = {}) {
     // Преміум 3D — окрема емблема "OLEG-SMILE Coin" з прозорим фоном.
     val emblemSizeDp = LocalEmblemSize.current.dp
     val offsetX = LocalEmblemOffsetX.current.dp
@@ -376,6 +436,8 @@ private fun PremiumDashboardHeader() {
             }
             // Дата прибрана з преміум-шапки на прохання користувача.
         }
+        Spacer(modifier = Modifier.weight(1f))
+        CalendarHeaderButton(onClick = onCalendarTap)
     }
 }
 
@@ -900,5 +962,237 @@ fun RecentTransactionItem(transaction: RecentTransaction) {
                 color = if (isPurchase) AccentOrange else AccentGreen
             )
         }
+    }
+}
+
+// ======================== Calendar widget ========================
+
+/**
+ * Режим вибору періоду у віджеті календаря шапки дашборда. День відкриває
+ * стандартний `DatePicker`; місяць показує крок «місяць/рік» без днів.
+ */
+private enum class CalendarPeriod { DAY, MONTH }
+
+/**
+ * Початок локального дня (00:00:00.000) для заданого epoch-мс. Зберігає
+ * системний часовий пояс — щоб «28 травня» означало 28-те за вашою датою,
+ * а не за UTC (через що опівночі могли б показуватися дані сусіднього дня).
+ */
+private fun startOfDayLocal(epochMs: Long): Long {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = epochMs
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
+}
+
+/** Кінець локального дня (23:59:59.999) для заданого epoch-мс. */
+private fun endOfDayLocal(epochMs: Long): Long {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = epochMs
+    cal.set(Calendar.HOUR_OF_DAY, 23)
+    cal.set(Calendar.MINUTE, 59)
+    cal.set(Calendar.SECOND, 59)
+    cal.set(Calendar.MILLISECOND, 999)
+    return cal.timeInMillis
+}
+
+/** Початок місяця (1-ше число 00:00:00) для заданого epoch-мс. */
+private fun startOfMonthLocal(epochMs: Long): Long {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = epochMs
+    cal.set(Calendar.DAY_OF_MONTH, 1)
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
+}
+
+/** Кінець місяця (останній день 23:59:59.999) для заданого epoch-мс. */
+private fun endOfMonthLocal(epochMs: Long): Long {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = epochMs
+    cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+    cal.set(Calendar.HOUR_OF_DAY, 23)
+    cal.set(Calendar.MINUTE, 59)
+    cal.set(Calendar.SECOND, 59)
+    cal.set(Calendar.MILLISECOND, 999)
+    return cal.timeInMillis
+}
+
+/**
+ * Діалог-календар у шапці дашборда. Має два режими:
+ * - **День**: повноцінний `DatePicker`; при виборі дати — підвантажує
+ *   `PeriodStats` за локальний день.
+ * - **Місяць**: ↑↓ між місяцями і ↑↓ між роками; при зміні — підвантажує
+ *   стат за повний місяць.
+ *
+ * Внизу показуємо картку «Продажі / Закупки / Прибуток / Інші витрати /
+ * Баланс» за вибраний період. Поки `PeriodStats` ще завантажується —
+ * показуємо `CircularProgressIndicator`.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DashboardCalendarDialog(
+    periodStats: PeriodStats?,
+    onLoadStats: (Long, Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var period by remember { mutableStateOf(CalendarPeriod.DAY) }
+    val now = remember { System.currentTimeMillis() }
+    var selectedDateMs by remember { mutableStateOf(now) }
+    val dateState = rememberDatePickerState(initialSelectedDateMillis = now)
+    // Тригер для запитів — змінюється при перемиканні режиму або дати.
+    LaunchedEffect(period, selectedDateMs, dateState.selectedDateMillis) {
+        val anchor = dateState.selectedDateMillis ?: selectedDateMs
+        selectedDateMs = anchor
+        val range = when (period) {
+            CalendarPeriod.DAY -> startOfDayLocal(anchor) to endOfDayLocal(anchor)
+            CalendarPeriod.MONTH -> startOfMonthLocal(anchor) to endOfMonthLocal(anchor)
+        }
+        onLoadStats(range.first, range.second)
+    }
+    val dayFormatter = remember { SimpleDateFormat("d MMMM yyyy", Locale("uk", "UA")) }
+    val monthFormatter = remember { SimpleDateFormat("LLLL yyyy", Locale("uk", "UA")) }
+    val anchor = dateState.selectedDateMillis ?: selectedDateMs
+    val label = when (period) {
+        CalendarPeriod.DAY -> dayFormatter.format(Date(anchor))
+        CalendarPeriod.MONTH -> monthFormatter.format(Date(anchor)).replaceFirstChar { it.titlecase(Locale("uk", "UA")) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Підсумки за період", "Period summary")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = period == CalendarPeriod.DAY,
+                        onClick = { period = CalendarPeriod.DAY },
+                        label = { Text(tr("День", "Day")) }
+                    )
+                    FilterChip(
+                        selected = period == CalendarPeriod.MONTH,
+                        onClick = { period = CalendarPeriod.MONTH },
+                        label = { Text(tr("Місяць", "Month")) }
+                    )
+                }
+                if (period == CalendarPeriod.MONTH) {
+                    // У режимі місяця DatePicker зайвий: лишаємо лише
+                    // керування «−місяць / +місяць», бо день не важливий.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val cal = Calendar.getInstance()
+                                cal.timeInMillis = anchor
+                                cal.add(Calendar.MONTH, -1)
+                                dateState.selectedDateMillis = cal.timeInMillis
+                                selectedDateMs = cal.timeInMillis
+                            }
+                        ) { Text("◀") }
+                        Text(
+                            text = label,
+                            modifier = Modifier.weight(1f),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val cal = Calendar.getInstance()
+                                cal.timeInMillis = anchor
+                                cal.add(Calendar.MONTH, 1)
+                                dateState.selectedDateMillis = cal.timeInMillis
+                                selectedDateMs = cal.timeInMillis
+                            }
+                        ) { Text("▶") }
+                    }
+                } else {
+                    DatePicker(state = dateState, showModeToggle = false, title = null, headline = null)
+                }
+                HorizontalDivider()
+                Text(
+                    text = label,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+                PeriodStatsCard(stats = periodStats)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Закрити", "Close")) } }
+    )
+}
+
+/**
+ * Картка зі статами за вибраний період: продажі, закупки, прибуток
+ * (з кольоровим маркером ±), інші витрати, баланс. Поки `stats == null` —
+ * показуємо плейсхолдер «Завантаження…».
+ */
+@Composable
+private fun PeriodStatsCard(stats: PeriodStats?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        ),
+        shape = RoundedCornerShape(IOSDesign.CardCornerRadius)
+    ) {
+        if (stats == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(96.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(strokeWidth = 2.dp)
+            }
+            return@Card
+        }
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            StatRow(label = tr("Продажі", "Sales"), value = stats.sales, color = AccentGreen)
+            StatRow(label = tr("Закупки", "Purchases"), value = stats.purchases, color = AccentOrange)
+            StatRow(label = tr("Інші витрати", "Other expenses"), value = stats.otherExpenses, color = AccentRed)
+            HorizontalDivider()
+            StatRow(
+                label = tr("Прибуток", "Profit"),
+                value = stats.profit,
+                color = if (stats.profit >= 0) AccentGreen else AccentRed,
+                emphasize = true
+            )
+            StatRow(
+                label = tr("Баланс", "Balance"),
+                value = stats.balance,
+                color = if (stats.balance >= 0) AccentGreen else AccentRed,
+                emphasize = true
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatRow(label: String, value: Double, color: Color, emphasize: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            fontSize = if (emphasize) 14.sp else 13.sp,
+            fontWeight = if (emphasize) FontWeight.SemiBold else FontWeight.Normal
+        )
+        Text(
+            text = String.format("%,.2f ₴", value),
+            color = color,
+            fontSize = if (emphasize) 15.sp else 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }

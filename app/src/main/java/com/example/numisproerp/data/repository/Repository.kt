@@ -255,6 +255,16 @@ class Repository @Inject constructor(
         database.otherExpenseDao().getTotalSum() ?: 0.0
     }
 
+    /**
+     * Сума інших витрат за вибраний діапазон дат. Потрібно для віджета
+     * календаря у шапці дашборда — він обчислює баланс «продажі − закупки
+     * − інші витрати» за день/місяць.
+     */
+    suspend fun getOtherExpensesSumByDateRange(startDate: Long, endDate: Long): Double =
+        withContext(Dispatchers.IO) {
+            database.otherExpenseDao().getSumByDateRange(startDate, endDate) ?: 0.0
+        }
+
     suspend fun insertOtherExpense(expense: OtherExpense) {
         return withContext(Dispatchers.IO) {
             database.otherExpenseDao().insert(expense)
