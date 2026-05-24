@@ -29,6 +29,19 @@ data class DashboardData(
     val recentTransactions: List<RecentTransaction> = emptyList()
 )
 
+/**
+ * Зведення продажів/закупівель/прибутку та інших витрат для довільного
+ * діапазону дат (день, місяць — на вибір користувача в календарі дашборда).
+ * `profit` = sales − purchases. `balance` = sales − purchases − otherExpenses.
+ */
+data class PeriodStats(
+    val purchases: Double = 0.0,
+    val sales: Double = 0.0,
+    val otherExpenses: Double = 0.0,
+    val profit: Double = 0.0,
+    val balance: Double = 0.0
+)
+
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val repository: Repository
@@ -39,6 +52,43 @@ class DashboardViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _periodStats = MutableStateFlow<PeriodStats?>(null)
+    val periodStats: StateFlow<PeriodStats?> = _periodStats.asStateFlow()
+
+    private val _isLoadingPeriodStats = MutableStateFlow(false)
+    val isLoadingPeriodStats: StateFlow<Boolean> = _isLoadingPeriodStats.asStateFlow()
+
+    /**
+     * Завантажити підсумок «продажі / закупки / прибуток / витрати / баланс»
+     * за довільний діапазон дат. Викликається з календаря-віджета у шапці
+     * дашборда. Інтервал start..end вже має бути нормалізований до
+     * локального дня/місяця (start — 00:00:00, end — 23:59:59 за вибраний
+     * день; для місячного режиму end — останній день місяця 23:59:59).
+     */
+    fun loadStatsForRange(start: Long, end: Long) {
+        viewModelScope.launch {
+            _isLoadingPeriodStats.value = true
+            val purchases = repository.getPurchasesSumByDateRange(start, end)
+            val sales = repository.getSalesSumByDateRange(start, end)
+            val expenses = repository.getOtherExpensesSumByDateRange(start, end)
+            val profit = sales - purchases
+            val balance = sales - purchases - expenses
+            _periodStats.value = PeriodStats(
+                purchases = purchases,
+                sales = sales,
+                otherExpenses = expenses,
+                profit = profit,
+                balance = balance
+            )
+            _isLoadingPeriodStats.value = false
+        }
+    }
+
+    /** Скинути стан стат за період — викликати при закритті діалогу. */
+    fun resetPeriodStats() {
+        _periodStats.value = null
+    }
 
     fun loadDashboardData() {
         viewModelScope.launch {
