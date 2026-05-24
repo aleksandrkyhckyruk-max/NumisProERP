@@ -191,7 +191,7 @@ fun BundleScreen(
     if (uiState.showCreator) {
         BundleCreatorDialog(
             stockProducts = uiState.productsInStock,
-            templates = uiState.bundles,
+            templates = uiState.templates,
             draftName = uiState.draftName,
             draftComponents = uiState.draftComponents,
             draftSuggestedPrice = uiState.draftSuggestedPrice,

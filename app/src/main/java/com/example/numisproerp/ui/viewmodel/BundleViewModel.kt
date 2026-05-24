@@ -36,6 +36,14 @@ data class BundleComponentDraft(
 
 data class BundleUiState(
     val bundles: List<BundleWithSales> = emptyList(),
+    /**
+     * Підбірка «зразків» для пікера в більшості випадків = `bundles`,
+     * але без дублікатів: якщо користувач робив одну й ту ж збірку (та сама
+     * назва, ті самі компоненти + кількість, та сама ціна/собівартість, той самий
+     * коментар), у списку лишиться тільки один — найновіший екземпляр. Це робить
+     * пікер виправданим у випадку, коли збіраються багато ідентичних комплектів.
+     */
+    val templates: List<BundleWithSales> = emptyList(),
     val productsInStock: List<ProductInStock> = emptyList(),
     val isLoading: Boolean = false,
     val showCreator: Boolean = false,
@@ -75,12 +83,47 @@ class BundleViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             bundleDao.getAllWithSales().collectLatest { list ->
+                val templates = deduplicateTemplates(list)
                 _uiState.value = _uiState.value.copy(
                     bundles = list,
+                    templates = templates,
                     isLoading = false
                 )
             }
         }
+    }
+
+    /**
+     * Для пікера зразків обчислюємо сигнатуру кожної збірки:
+     *  - назва (trim, lowercase — «Монета 1» і «монета 1 » є тим же зразком);
+     *  - відсортований список (componentCatalogId, quantity);
+     *  - totalCost, suggestedPrice;
+     *  - коментар (trim).
+     * Збірки приходять вже відсортовані за `assembledDate DESC`, тому `distinctBy`
+     * залишить найновіший екземпляр для кожної унікальної сигнатури.
+     */
+    private suspend fun deduplicateTemplates(
+        list: List<BundleWithSales>
+    ): List<BundleWithSales> {
+        if (list.isEmpty()) return list
+        val withSigs = list.map { b ->
+            val components = bundleDao.getComponentsForBundle(b.bundleId)
+                .map { it.componentCatalogId to it.quantity }
+                .sortedBy { it.first }
+            val sig = buildString {
+                append(b.name.trim().lowercase())
+                append('|')
+                append(b.totalCost)
+                append('|')
+                append(b.suggestedPrice)
+                append('|')
+                append(b.comment.trim())
+                append('|')
+                components.forEach { (id, q) -> append(id); append('x'); append(q); append(',') }
+            }
+            b to sig
+        }
+        return withSigs.distinctBy { it.second }.map { it.first }
     }
 
     private fun observeProductsInStock() {
