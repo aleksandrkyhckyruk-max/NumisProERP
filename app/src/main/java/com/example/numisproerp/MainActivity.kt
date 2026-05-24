@@ -161,6 +161,9 @@ class MainActivity : ComponentActivity() {
             val tileLabelColor by settingsManager.tileLabelColorState
             val infoCardBackgroundColor by settingsManager.infoCardBackgroundColorState
             val infoCardBackgroundAlpha by settingsManager.infoCardBackgroundAlphaState
+            val infoCardBorderEnabled by settingsManager.infoCardBorderEnabledState
+            val infoCardBorderColor by settingsManager.infoCardBorderColorState
+            val infoCardBorderOpacity by settingsManager.infoCardBorderOpacityState
             val topBarColor by settingsManager.topBarColorState
             val topBarBrightness by settingsManager.topBarBrightnessState
             val topBarOpacity by settingsManager.topBarOpacityState
@@ -214,6 +217,9 @@ class MainActivity : ComponentActivity() {
                 tileLabelColorHex = tileLabelColor,
                 infoCardBackgroundColorHex = infoCardBackgroundColor,
                 infoCardBackgroundAlpha = infoCardBackgroundAlpha,
+                infoCardBorderEnabled = infoCardBorderEnabled,
+                infoCardBorderColorHex = infoCardBorderColor,
+                infoCardBorderOpacity = infoCardBorderOpacity,
                 topBarColorHex = topBarColor,
                 topBarBrightness = topBarBrightness,
                 topBarOpacity = topBarOpacity,

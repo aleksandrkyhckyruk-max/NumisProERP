@@ -161,6 +161,22 @@ val LocalInfoCardBackgroundColor = compositionLocalOf { "" }
 val LocalInfoCardBackgroundAlpha = compositionLocalOf { SettingsManager.DEFAULT_INFO_CARD_BG_ALPHA }
 
 /**
+ * Чи показувати обводку (контур) навколо інфо-карток Dashboard.
+ * false — старий вигляд (без обводки).
+ */
+val LocalInfoCardBorderEnabled = compositionLocalOf { false }
+
+/**
+ * Колір обводки інфо-карток у hex без `#`.
+ */
+val LocalInfoCardBorderColor = compositionLocalOf { SettingsManager.DEFAULT_INFO_CARD_BORDER_COLOR }
+
+/**
+ * Прозорість обводки інфо-карток (0..1). Помножується на parsedColor.alpha.
+ */
+val LocalInfoCardBorderOpacity = compositionLocalOf { SettingsManager.DEFAULT_INFO_CARD_BORDER_OPACITY }
+
+/**
  * Користувацький колір фону верхнього бару (`TopAppBar`) у hex без `#`.
  * Порожній рядок — використовується стандартний колір з теми
  * (`colorScheme.primaryContainer`/`surface`), як було раніше.
