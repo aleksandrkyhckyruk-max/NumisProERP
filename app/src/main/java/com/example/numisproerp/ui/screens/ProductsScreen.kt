@@ -117,16 +117,9 @@ fun ProductsScreen(
             )
         }
 
-        ExtendedFloatingActionButton(
-            onClick = { showAddDialog = true },
-            icon = { Icon(Icons.Default.Add, contentDescription = null) },
-            text = { Text(tr("Додати товар", "Add product")) },
-            containerColor = AccentBlue,
-            contentColor = androidx.compose.ui.graphics.Color.White,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(20.dp)
-        )
+        // FAB «Додати товар» прибрано: відповідний пункт є в боковому меню.
+        // Попередній вхід через `openAddOnStart` (з drawer) продовжує відкривати
+        // діалог відразу.
 
         Column(
             modifier = Modifier
@@ -160,25 +153,8 @@ fun ProductsScreen(
                 shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Помітна кнопка ручного додавання: користувачі не завжди помічають
-            // FAB у нижньому правому куті, тому дублюємо її на видному місці
-            // одразу під пошуком. Обидві відкривають той самий діалог.
-            Button(
-                onClick = { showAddDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                shape = RoundedCornerShape(IOSDesign.ButtonCornerRadius)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = tr("Додати товар вручну", "Add product manually"),
-                    color = androidx.compose.ui.graphics.Color.White,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            // Дублюючу кнопку «Додати товар вручну» під пошуком прибрано на прохання
+            // користувача — відповідний пункт вже є в боковому меню.
 
             if (uiState.categories.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))

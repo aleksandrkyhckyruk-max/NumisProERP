@@ -407,39 +407,112 @@ class Repository @Inject constructor(
         database.saleDao().getRecentWithDetails(Int.MAX_VALUE)
     }
 
+    /**
+     * Стрічка «Останні операції» на дашборді. Користувач у фідбеку попросив
+     * групувати позиції одного постачальника за один календарний день у
+     * ОДИН рядок (а не показувати кожен товар окремо). Аналогічно групуються
+     * продажі одного клієнта за день.
+     *
+     * Алгоритм:
+     *  1) Витягуємо «з запасом» (limit * 5) сирих операцій з БД — так після
+     *     злипання дублікатів ми все ще маємо достатньо рядків, щоб віддати
+     *     запрошений limit.
+     *  2) Ключ групи = (counterpartyName, localDayStartMillis), де
+     *     localDayStartMillis — початок календарного дня у системній TZ
+     *     (так, як це бачить користувач у Києві). UTC-кей дав би неправильні
+     *     стики на ~опівночі.
+     *  3) У підсумковому TransactionSummary:
+     *      - amount = сума totalAmount у групі;
+     *      - date = дата найновішої операції у групі (щоб сортування за датою
+     *        було стабільне);
+     *      - productName: якщо в групі один товар — його назва; якщо більше —
+     *        «<перший товар> +N» (де N — кількість додаткових позицій).
+     *      - id = стабільний "<type>-group-<counterparty>-<dayKey>".
+     *  4) Сортуємо все за датою спадно й беремо limit.
+     */
     suspend fun getRecentTransactions(limit: Int): List<TransactionSummary> = withContext(Dispatchers.IO) {
-        val recentPurchases = database.purchaseDao().getRecentWithDetails(limit)
-        val recentSales = database.saleDao().getRecentWithDetails(limit)
+        // Зчитуємо «з запасом», щоб після злипання все одно вистачило на limit.
+        val rawLimit = (limit * 5).coerceAtLeast(limit)
+        val recentPurchases = database.purchaseDao().getRecentWithDetails(rawLimit)
+        val recentSales = database.saleDao().getRecentWithDetails(rawLimit)
 
-        val allTransactions = mutableListOf<TransactionSummary>()
-
-        recentPurchases.forEach { purchase ->
-            allTransactions.add(
-                TransactionSummary(
-                    id = purchase.purchaseId,
-                    type = "Покупка",
-                    amount = purchase.totalAmount,
-                    date = purchase.date,
-                    productName = purchase.productName,
-                    counterpartyName = purchase.supplierName
+        val purchaseSummaries = groupTransactionsByCounterpartyDay(
+            type = "Покупка",
+            entries = recentPurchases.map { p ->
+                RawTxn(
+                    id = p.purchaseId,
+                    date = p.date,
+                    amount = p.totalAmount,
+                    productName = p.productName,
+                    counterpartyName = p.supplierName
                 )
-            )
+            }
+        )
+        val saleSummaries = groupTransactionsByCounterpartyDay(
+            type = "Продаж",
+            entries = recentSales.map { s ->
+                RawTxn(
+                    id = s.saleId,
+                    date = s.date,
+                    amount = s.totalAmount,
+                    productName = s.productName,
+                    counterpartyName = s.clientName
+                )
+            }
+        )
+
+        (purchaseSummaries + saleSummaries)
+            .sortedByDescending { it.date }
+            .take(limit)
+    }
+
+    private data class RawTxn(
+        val id: String,
+        val date: Long,
+        val amount: Double,
+        val productName: String,
+        val counterpartyName: String
+    )
+
+    private fun groupTransactionsByCounterpartyDay(
+        type: String,
+        entries: List<RawTxn>
+    ): List<TransactionSummary> {
+        if (entries.isEmpty()) return emptyList()
+        // Локальний календарний день у TZ користувача — як і в History.
+        val cal = java.util.Calendar.getInstance()
+        fun localDayKey(millis: Long): Long {
+            cal.timeInMillis = millis
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
         }
 
-        recentSales.forEach { sale ->
-            allTransactions.add(
-                TransactionSummary(
-                    id = sale.saleId,
-                    type = "Продаж",
-                    amount = sale.totalAmount,
-                    date = sale.date,
-                    productName = sale.productName,
-                    counterpartyName = sale.clientName
-                )
+        // Зберігаємо порядок надходження — entries вже відсортовані за date DESC у DAO,
+        // тож перший елемент у групі — найсвіжіший.
+        val grouped = linkedMapOf<Pair<String, Long>, MutableList<RawTxn>>()
+        entries.forEach { e ->
+            val key = e.counterpartyName to localDayKey(e.date)
+            grouped.getOrPut(key) { mutableListOf() }.add(e)
+        }
+        return grouped.map { (key, list) ->
+            val first = list.first()
+            val productName = if (list.size == 1) {
+                first.productName
+            } else {
+                "${first.productName} +${list.size - 1}"
+            }
+            TransactionSummary(
+                id = "$type-group-${key.first}-${key.second}",
+                type = type,
+                amount = list.sumOf { it.amount },
+                date = first.date,
+                productName = productName,
+                counterpartyName = key.first
             )
         }
-
-        allTransactions.sortedByDescending { it.date }.take(limit)
     }
 
     /**
