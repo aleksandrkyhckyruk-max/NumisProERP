@@ -149,7 +149,6 @@ fun SettingsScreen(
     // окремі (`showTopBarDialog` / `showBottomBarDialog`). Користувач попросив
     // обʼєднати, щоб одним повзунком налаштовувати обидва бари.
     var showTopBottomBarDialog by remember { mutableStateOf(false) }
-    var showDrawerDialog by remember { mutableStateOf(false) }
     // Поточна плитка, для якої запускається picker (`tileId`). Зберігаємо тут,
     // щоб після повернення з image-picker зрозуміти, куди писати файл.
     var pickerTileId by remember { mutableStateOf("") }
@@ -559,7 +558,6 @@ fun SettingsScreen(
             onOpenTextShadow = { showTextShadowDialog = true },
             onOpenInfoCards = { showInfoCardsDialog = true },
             onOpenTopBottomBar = { showTopBottomBarDialog = true },
-            onOpenDrawer = { showDrawerDialog = true },
             onDismiss = { showInterfaceDialog = false }
         )
     }
@@ -630,42 +628,37 @@ fun SettingsScreen(
     }
 
     if (showTopBottomBarDialog) {
-        // Обʼєднаний діалог: показуємо стан верхнього бару у повзунках, але
-        // кожна зміна синхронно записується і у верхній, і в нижній бар. Так
-        // користувач одним рухом узгоджує обидва бари.
+        // Обʼєднаний діалог для всіх трьох барів (верхній + нижній + бічне меню).
+        // Повзунки показують стан верхнього бару як «ведучий», але кожна зміна
+        // синхронно записується у всі три набори преференсів (верхній, нижній, drawer)
+        // — одним рухом користувач узгоджує вигляд усіх барів.
         BarCustomizationDialog(
-            title = tr("Верхній + нижній бар", "Top + bottom bar"),
+            title = tr("Бари (верхній + нижній + бічне меню)", "Bars (top + bottom + side menu)"),
             colorState = settings.topBarColorState,
             brightnessState = settings.topBarBrightnessState,
             opacityState = settings.topBarOpacityState,
             onColorChange = {
                 settings.topBarColor = it
                 settings.bottomBarColor = it
+                settings.drawerColor = it
             },
             onBrightnessChange = {
                 settings.topBarBrightness = it
                 settings.bottomBarBrightness = it
+                settings.drawerBrightness = it
             },
             onOpacityChange = {
                 settings.topBarOpacity = it
                 settings.bottomBarOpacity = it
+                settings.drawerOpacity = it
             },
             onDismiss = { showTopBottomBarDialog = false }
         )
     }
 
-    if (showDrawerDialog) {
-        BarCustomizationDialog(
-            title = tr("Бічне меню", "Side menu"),
-            colorState = settings.drawerColorState,
-            brightnessState = settings.drawerBrightnessState,
-            opacityState = settings.drawerOpacityState,
-            onColorChange = { settings.drawerColor = it },
-            onBrightnessChange = { settings.drawerBrightness = it },
-            onOpacityChange = { settings.drawerOpacity = it },
-            onDismiss = { showDrawerDialog = false }
-        )
-    }
+    // Окремий діалог «Бічне меню» прибрано: він обʼєднаний з верхнім+нижнім
+    // вище на прохання користувача (одна кнопка для всіх трьох барів). Преференси
+    // `drawerColor/Brightness/Opacity` зберігаються, щоб не втратити старі налаштування.
 
     if (showResetDialog) {
         AlertDialog(
@@ -1893,7 +1886,6 @@ private fun InterfaceDialog(
     onOpenTextShadow: () -> Unit,
     onOpenInfoCards: () -> Unit,
     onOpenTopBottomBar: () -> Unit,
-    onOpenDrawer: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val familyKey by settings.fontFamilyState
@@ -1988,21 +1980,15 @@ private fun InterfaceDialog(
                 )
                 InterfaceRow(
                     icon = Icons.Default.ColorLens,
-                    title = tr("Верхній + нижній бар", "Top + bottom bar"),
+                    title = tr(
+                        "Бари (верхній + нижній + бічне меню)",
+                        "Bars (top + bottom + side menu)"
+                    ),
                     subtitle = tr(
-                        "Колір, яскравість, прозорість — спільно",
-                        "Color, brightness, opacity — together"
+                        "Колір, яскравість, прозорість — для всіх трьох барів",
+                        "Color, brightness, opacity — for all three bars"
                     ),
                     onClick = { onDismiss(); onOpenTopBottomBar() }
-                )
-                InterfaceRow(
-                    icon = Icons.Default.ColorLens,
-                    title = tr("Бічне меню", "Side menu"),
-                    subtitle = tr(
-                        "Колір, яскравість, прозорість",
-                        "Color, brightness, opacity"
-                    ),
-                    onClick = { onDismiss(); onOpenDrawer() }
                 )
             }
         },
